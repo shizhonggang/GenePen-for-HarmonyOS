@@ -1,0 +1,56 @@
+{
+  "app": {
+    "signingConfigs": [
+      {
+        "name": "default",
+        "material": {
+          "storePassword": "0000001903A306AF6B72FCEC0C6FB3FA152C16CF4945E440A678EAAF78C9FBEF36FC23DEFA2F777181",
+          "certpath": "/storage/Users/currentUser/Documents/PROJECT/genepen/GenPen.cer",
+          "keyAlias": "szg",
+          "keyPassword": "0000001903A306AF6B72FCEC0C6FB3FA152C16CF4945E440A678EAAF78C9FBEF36FC23DEFA2F777181",
+          "profile": "/storage/Users/currentUser/Documents/PROJECT/genepen/GenPenRelease.p7b",
+          "signAlg": "SHA256withECDSA",
+          "storeFile": "/storage/Users/currentUser/Documents/PROJECT/szg.p12"
+        },
+        "type": "HarmonyOS"
+      }
+    ],
+    "products": [
+      {
+        "name": "default",
+        "signingConfig": "default",
+        "targetSdkVersion": "6.0.0(20)",
+        "compatibleSdkVersion": "6.0.0(20)",
+        "runtimeOS": "HarmonyOS",
+        "buildOption": {
+          "strictMode": {
+            "caseSensitiveCheck": true,
+            "useNormalizedOHMUrl": true
+          }
+        }
+      }
+    ],
+    "buildModeSet": [
+      {
+        "name": "debug"
+      },
+      {
+        "name": "release"
+      }
+    ]
+  },
+  "modules": [
+    {
+      "name": "entry",
+      "srcPath": "./entry",
+      "targets": [
+        {
+          "name": "default",
+          "applyToProducts": [
+            "default"
+          ]
+        }
+      ]
+    }
+  ]
+}

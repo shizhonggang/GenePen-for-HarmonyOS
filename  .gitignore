@@ -1,0 +1,19 @@
+# Build outputs
+build/
+.hvigor/
+entry/build/
+oh_modules/
+node_modules/
+
+# IDE files
+.idea/
+*.iml
+
+# Signing keys (重要！不要上传密钥)
+*.p12
+*.cer
+*.p7b
+
+# OS files
+.DS_Store
+Thumbs.db

@@ -1,0 +1,16 @@
+{
+  "string": [
+    {
+      "name": "module_desc",
+      "value": "GenePen Sequence Editor"
+    },
+    {
+      "name": "EntryAbility_desc",
+      "value": "GenePen"
+    },
+    {
+      "name": "EntryAbility_label",
+      "value": "GenePen"
+    }
+  ]
+}

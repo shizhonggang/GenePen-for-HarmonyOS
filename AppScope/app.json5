@@ -1,0 +1,11 @@
+{
+  "app": {
+    "bundleName": "com.genepen.app",
+    "vendor": "师忠港",
+    "versionCode": 1,
+    "versionName": "1.0.0",
+    "icon": "$media:layered_image",
+    "label": "$string:app_name",
+    "description": "DNA查看编辑工具"
+  }
+}

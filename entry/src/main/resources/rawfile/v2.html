@@ -1,0 +1,2230 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🧬 GenePen</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0f1117;color:#e0e2ed;height:100vh;display:flex;flex-direction:column;overflow:hidden}
+header{padding:0 16px;height:42px;background:#1a1d28;border-bottom:1px solid #2e3344;display:flex;align-items:center;gap:0;flex-shrink:0}
+header h1{font-size:17px;white-space:nowrap;margin-right:4px}header .sub{color:#8b8fa8;font-size:13px;margin-right:12px}
+.menu-item{position:relative;padding:7px 12px;background:transparent;color:#b0b4c8;border:none;cursor:pointer;font-size:14px;border-radius:4px;transition:background .1s}
+.menu-item:hover,.menu-item.open{background:#2a2f3e;color:#e0e2ed}
+.dropdown{display:none;position:absolute;top:100%;left:0;margin-top:2px;background:#1e2230;border:1px solid #2e3344;border-radius:6px;padding:4px 0;min-width:140px;z-index:100;box-shadow:0 4px 16px rgba(0,0,0,.4)}
+.menu-item.open .dropdown{display:block}
+.dropdown .drop-item{display:block;width:100%;padding:8px 16px;background:transparent;border:none;color:#b0b4c8;font-size:14px;text-align:left;cursor:pointer;white-space:nowrap}
+.dropdown .drop-item:hover{background:#2a2f3e;color:#e0e2ed}
+.dropdown .drop-item.disabled{color:#4a4f60;cursor:default;pointer-events:none}
+.dropdown .drop-item.checked::before{content:'✓ ';color:#4f8cff}
+.dropdown .drop-sep{height:1px;margin:4px 10px;background:#2e3344}
+.drop-item.has-sub{position:relative}
+.drop-item.has-sub::after{content:'▸';position:absolute;right:10px;color:#5a5f78}
+.submenu{display:none;position:absolute;left:100%;top:-4px;background:#1e2230;border:1px solid #2e3344;border-radius:6px;padding:4px 0;min-width:130px;box-shadow:0 4px 16px rgba(0,0,0,.4)}
+.drop-item.has-sub:hover>.submenu{display:block}
+#fileInput{display:none}
+#status{margin-left:auto;color:#6b7088;font-size:13px}
+#main{flex:1;display:flex;flex-direction:column;overflow:hidden}
+.tabbar{display:flex;background:#1a1d28;border-top:1px solid #2e3344;flex-shrink:0}
+.tabbar button{padding:10px 22px;background:transparent;color:#8b8fa8;border:none;cursor:pointer;font-size:16px;border-top:2px solid transparent;transition:all.15s}
+.tabbar button:hover{color:#e0e2ed;background:rgba(79,140,255,.06)}
+.tabbar button.active{color:#4f8cff;border-top-color:#4f8cff}
+.tabc{display:none;flex:1;overflow:hidden;flex-direction:column}
+.tabc.active{display:flex}
+#canvasWrap{flex:1;display:flex;align-items:center;justify-content:center;position:relative;background:#0e1018;overflow:hidden}
+#c{max-width:100%;max-height:100%}
+#placeholder{color:#8b8fa8;font-size:17px;text-align:center;position:absolute}
+#bottom{display:flex;align-items:center;gap:12px;padding:5px 16px;background:#1a1d28;border-top:1px solid #2e3344;flex-shrink:0;font-size:14px;color:#8b8fa8}
+.map-bar{display:flex;align-items:center;gap:10px;padding:6px 12px;background:#1a1d28;border-top:1px solid #2e3344;flex-shrink:0;font-size:14px}
+.map-bar label{color:#8b8fa8;display:flex;align-items:center;gap:3px;white-space:nowrap}
+.map-bar select,.map-bar input[type=checkbox]{background:#1a1d28;color:#e0e2ed;border:1px solid #2e3344;border-radius:3px;padding:1px 3px}
+/* Seq viewer */
+#seqViewWrap{flex:1;overflow:hidden;position:relative;background:#0e1018}
+#seqView{display:block;cursor:grab}
+#seqView:active{cursor:grabbing}
+.seq-bar{display:flex;align-items:center;gap:8px;padding:6px 10px;background:#232734;border-top:1px solid #2e3344;flex-shrink:0;font-size:14px}
+.seq-bar label{color:#8b8fa8;display:flex;align-items:center;gap:3px;white-space:nowrap}
+.seq-bar select,.seq-bar input[type=checkbox]{background:#1a1d28;color:#e0e2ed;border:1px solid #2e3344;border-radius:3px;padding:1px 3px}
+.seq-bar input[type=range]{width:90px;height:4px;accent-color:#4f8cff;cursor:pointer}
+.zoom-label{color:#8b8fa8;font-size:12px;min-width:50px;text-align:center}
+/* Enzyme table */
+#enzPanel{flex:1;display:flex;flex-direction:column;overflow:hidden}
+.enz-bar{display:flex;align-items:center;gap:10px;padding:6px 10px;background:#232734;border-top:1px solid #2e3344;flex-shrink:0;font-size:14px}
+.enz-bar select{background:#1a1d28;color:#e0e2ed;border:1px solid #2e3344;border-radius:3px;padding:1px 3px}
+#enzTable{width:100%;border-collapse:collapse;font-size:14px;overflow-y:auto;display:block;flex:1}
+#enzTable thead{position:sticky;top:0;z-index:1}
+#enzTable th{background:#1a1d28;color:#8b8fa8;text-align:left;padding:5px 8px;border-bottom:1px solid #2e3344;font-weight:500}
+#enzTable td{padding:4px 8px;border-bottom:1px solid rgba(46,51,68,.4);font-family:monospace;font-size:13px}
+#enzBody tr:hover td{background:rgba(79,140,255,.08)}
+#enzEmpty{padding:20px;text-align:center;color:#8b8fa8}
+/* Properties panel */
+#propPanel{position:fixed;right:0;top:42px;bottom:0;width:260px;background:#1a1d28;border-left:1px solid #2e3344;z-index:50;display:flex;flex-direction:column;transition:transform .2s;overflow-y:auto}
+#propPanel.hidden{transform:translateX(100%)}
+#propToggle{position:fixed;right:260px;top:50%;transform:translateY(-50%);background:#1a1d28;border:1px solid #2e3344;border-right:none;border-radius:4px 0 0 4px;padding:8px 5px;cursor:pointer;z-index:51;color:#8b8fa8;font-size:13px;writing-mode:vertical-rl;transition:right .2s}
+#propToggle.hidden{right:0}
+.prop-section{padding:10px 12px;border-bottom:1px solid #2e3344}
+.prop-title{font-size:13px;color:#8b8fa8;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px}
+.prop-row{display:flex;justify-content:space-between;align-items:baseline;padding:3px 0;font-size:14px}
+.prop-row .pk{color:#6b7088}
+.prop-row .pv{color:#e0e2ed;text-align:right;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.prop-empty{padding:20px 12px;color:#5a5f78;font-size:13px;text-align:center}
+/* Modal dialog */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;z-index:200}
+.modal-box{background:#1e2230;border:1px solid #3a4060;border-radius:10px;padding:20px;min-width:320px;max-width:480px;box-shadow:0 8px 32px rgba(0,0,0,.5)}
+.modal-title{font-size:16px;font-weight:bold;color:#e0e2ed;margin-bottom:12px}
+.modal-body{margin-bottom:16px;color:#b0b4c8;font-size:14px}
+.modal-body textarea{width:100%;min-height:60px;background:#0f1117;color:#e0e2ed;border:1px solid #2e3344;border-radius:6px;padding:8px;font-family:Consolas,monospace;font-size:14px;resize:vertical}
+.modal-body .warn{color:#f0a030;margin-bottom:8px}
+.modal-actions{display:flex;justify-content:flex-end;gap:8px}
+.modal-actions button{padding:7px 18px;border:none;border-radius:5px;font-size:14px;cursor:pointer}
+.modal-actions .btn-cancel{background:#2a2f3e;color:#b0b4c8}
+.modal-actions .btn-cancel:hover{background:#3a4050}
+.modal-actions .btn-ok{background:#4f8cff;color:#fff}
+.modal-actions .btn-ok:hover{background:#3b7ae8}
+.modal-actions .btn-danger{background:#e05050;color:#fff}
+.modal-actions .btn-danger:hover{background:#c04040}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="menu-item" id="menuFile">文件
+    <div class="dropdown">
+      <label class="drop-item">打开文件…<input type="file" id="fileInput" accept=".gb,.gbk,.genbank,.fasta,.fa,.dna,.txt"></label>
+      <button class="drop-item disabled" id="btnRecent">最近打开</button>
+      <div class="drop-sep"></div>
+      <button class="drop-item" id="btnSave">保存 <span style="color:#5a5f78;float:right">Ctrl+S</span></button>
+      <button class="drop-item" id="btnSaveAs">另存为…</button>
+      <div class="drop-sep"></div>
+      <button class="drop-item" id="btnGb">导出 GenBank (.gb)</button>
+      <button class="drop-item" id="btnExFa">导出 FASTA (.fa)</button>
+      <button class="drop-item" id="btnExTxt">导出纯序列 (.txt)</button>
+      <button class="drop-item" id="btnExDna">导出 SnapGene (.dna)</button>
+      <button class="drop-item disabled" id="btnExPng">导出图谱 PNG</button>
+      <div class="drop-sep"></div>
+      <button class="drop-item disabled" id="btnSeqInfo">序列信息</button>
+    </div>
+  </div>
+  <div class="menu-item" id="menuEnz">酶
+    <div class="dropdown">
+      <button class="drop-item checked" id="togEnz">显示酶切位点</button>
+      <div class="drop-sep"></div>
+      <div class="drop-item has-sub">筛选
+        <div class="submenu">
+          <button class="drop-item checked" data-enzf="unique">Unique (1切点)</button>
+          <button class="drop-item checked" data-enzf="dual">Dual (2切点)</button>
+          <button class="drop-item" data-enzf="all">全部 (3+切点)</button>
+        </div>
+      </div>
+      <div class="drop-item has-sub disabled">提供商
+        <div class="submenu">
+          <button class="drop-item checked">全部</button>
+          <button class="drop-item">NEB</button>
+          <button class="drop-item">Thermo Fisher</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="menu-item" id="menuPrimer">引物
+    <div class="dropdown">
+      <button class="drop-item checked" id="togPrimers">显示引物</button>
+      <div class="drop-sep"></div>
+      <button class="drop-item" id="btnAddPrimer">添加引物…</button>
+      <button class="drop-item disabled">引物设计</button>
+    </div>
+  </div>
+  <div class="menu-item" id="menuFeat">注释
+    <div class="dropdown">
+      <button class="drop-item checked" id="togFeat">显示特征注释</button>
+      <div class="drop-sep"></div>
+      <button class="drop-item disabled">添加注释</button>
+      <button class="drop-item disabled">编辑注释</button>
+    </div>
+  </div>
+  <div class="menu-item" id="menuORF">ORF
+    <div class="dropdown">
+      <button class="drop-item checked" id="togORF">显示 ORF</button>
+      <div class="drop-sep"></div>
+      <div class="drop-item has-sub">阅读框
+        <div class="submenu">
+          <button class="drop-item checked" data-frame="1">+1</button>
+          <button class="drop-item" data-frame="2">+2</button>
+          <button class="drop-item" data-frame="3">+3</button>
+          <div class="drop-sep"></div>
+          <button class="drop-item" data-frame="-1">-1</button>
+          <button class="drop-item" data-frame="-2">-2</button>
+          <button class="drop-item" data-frame="-3">-3</button>
+          <div class="drop-sep"></div>
+          <button class="drop-item" data-frame="all">全部</button>
+        </div>
+      </div>
+      <div class="drop-item has-sub">氨基酸
+        <div class="submenu">
+          <button class="drop-item checked" data-aamode="1">单字母</button>
+          <button class="drop-item" data-aamode="3">三字母</button>
+        </div>
+      </div>
+      <div class="drop-item has-sub">最短长度
+        <div class="submenu">
+          <button class="drop-item" data-minorf="10">≥ 10 aa</button>
+          <button class="drop-item" data-minorf="20">≥ 20 aa</button>
+          <button class="drop-item checked" data-minorf="30">≥ 30 aa</button>
+          <button class="drop-item" data-minorf="50">≥ 50 aa</button>
+          <button class="drop-item" data-minorf="100">≥ 100 aa</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <select id="frameS" style="display:none"><option value="1">+1</option><option value="2">+2</option><option value="3">+3</option><option value="-1">-1</option><option value="-2">-2</option><option value="-3">-3</option><option value="all">全部</option></select>
+  <select id="aaMode" style="display:none"><option value="1">单字母</option><option value="3">三字母</option></select>
+  <input type="hidden" id="minORF" value="30">
+  <span id="status">就绪</span>
+</header>
+
+<div id="main">
+  <!-- Map Tab -->
+  <div id="tabMap" class="tabc active">
+    <div id="canvasWrap"><canvas id="c"></canvas><div id="placeholder">📂 点击「打开文件」加载质粒序列</div></div>
+    <div class="map-bar">
+      <select id="mapMode"><option value="circular">环形</option><option value="linear">线性</option></select>
+      <label><input type="checkbox" id="showEnzOnMap" checked> 酶切位点</label>
+      <label><input type="checkbox" id="showPrimers" checked> 引物</label>
+      <span style="margin-left:auto;display:flex;align-items:center;gap:4px">
+        <span style="color:#8b8fa8;font-size:11px">🔍</span>
+        <input type="range" id="mapZoom" min="50" max="5000" value="100" style="width:100px;height:4px;accent-color:#4f8cff;cursor:pointer">
+        <span id="mapZoomLbl" style="color:#8b8fa8;font-size:10px;min-width:36px;text-align:center">100%</span>
+        <button id="mapZoomReset" style="padding:1px 6px;background:#1a1d28;color:#8b8fa8;border:1px solid #2e3344;border-radius:3px;cursor:pointer;font-size:11px">重置</button>
+      </span>
+    </div>
+  </div>
+
+  <!-- Seq Tab -->
+  <div id="tabSeq" class="tabc">
+    <div id="seqViewWrap"><canvas id="seqView"></canvas></div>
+    <div class="seq-bar">
+      <input type="checkbox" id="showORF" checked style="display:none">
+      <label><input type="checkbox" id="showFeatInSeq" checked> 特征</label>
+      <label><input type="checkbox" id="showEnzInSeq" checked> 酶切</label>
+    </div>
+  </div>
+
+  <!-- Enzyme Tab -->
+  <div id="tabEnz" class="tabc">
+    <div id="enzPanel">
+      <table id="enzTable"><thead><tr><th>酶</th><th>识别序列</th><th>切点位置</th><th>数量</th></tr></thead>
+        <tbody id="enzBody"></tbody>
+      </table>
+      <div id="enzEmpty">无匹配酶切位点</div>
+      <div class="enz-bar">
+        <span style="color:#8b8fa8">限制性内切酶</span>
+        <span id="enzCnt" style="color:#5a5f78;font-size:13px"></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Feature Tab -->
+  <div id="tabFeat" class="tabc">
+    <div id="featPanel" style="flex:1;display:flex;flex-direction:column;overflow:hidden">
+      <table id="featTable" style="width:100%;border-collapse:collapse;font-size:14px;overflow-y:auto;display:block;flex:1">
+        <thead style="position:sticky;top:0;z-index:1"><tr>
+          <th style="background:#1a1d28;color:#8b8fa8;text-align:left;padding:6px 8px;border-bottom:1px solid #2e3344">类型</th>
+          <th style="background:#1a1d28;color:#8b8fa8;text-align:left;padding:6px 8px;border-bottom:1px solid #2e3344">名称</th>
+          <th style="background:#1a1d28;color:#8b8fa8;text-align:left;padding:6px 8px;border-bottom:1px solid #2e3344">范围</th>
+          <th style="background:#1a1d28;color:#8b8fa8;text-align:left;padding:6px 8px;border-bottom:1px solid #2e3344">长度</th>
+          <th style="background:#1a1d28;color:#8b8fa8;text-align:left;padding:6px 8px;border-bottom:1px solid #2e3344">方向</th>
+        </tr></thead>
+        <tbody id="featBody"></tbody>
+      </table>
+      <div id="featEmpty" style="padding:20px;text-align:center;color:#8b8fa8">无特征注释</div>
+    </div>
+  </div>
+</div>
+
+<div class="tabbar">
+  <button class="active" data-tab="map">图谱</button>
+  <button data-tab="seq">序列</button>
+  <button data-tab="enz">酶切位点</button>
+  <button data-tab="feat">特征</button>
+</div>
+
+<div id="bottom">
+  <span id="bpInfo">长度：—</span>
+  <span id="gcInfo">GC%：—</span>
+  <span id="featCnt">特征：—</span>
+</div>
+
+<!-- Properties Panel -->
+<button id="propToggle" class="hidden" onclick="document.getElementById('propPanel').classList.toggle('hidden');this.classList.toggle('hidden')">属性</button>
+<div id="propPanel" class="hidden">
+  <div class="prop-section" id="propPlasmid">
+    <div class="prop-title">质粒信息</div>
+    <div class="prop-row"><span class="pk">名称</span><span class="pv" id="ppName">—</span></div>
+    <div class="prop-row"><span class="pk">长度</span><span class="pv" id="ppLen">—</span></div>
+    <div class="prop-row"><span class="pk">拓扑</span><span class="pv" id="ppTopo">—</span></div>
+    <div class="prop-row"><span class="pk">GC%</span><span class="pv" id="ppGC">—</span></div>
+    <div class="prop-row"><span class="pk">特征数</span><span class="pv" id="ppFeat">—</span></div>
+  </div>
+  <div class="prop-section" id="propSelection">
+    <div class="prop-title">选中信息</div>
+    <div class="prop-empty" id="propSelEmpty">点击图谱或序列中的元素查看详情</div>
+    <div id="propSelContent" style="display:none"></div>
+  </div>
+</div>
+
+<!-- Context Menu -->
+<div id="seqCtxMenu" class="dropdown" style="display:none;position:fixed;z-index:300">
+  <button class="drop-item" id="ctxCopy">复制正链 <span style="color:#5a5f78;float:right">Ctrl+C</span></button>
+  <button class="drop-item" id="ctxCopyRC">复制负链 <span style="color:#5a5f78;float:right">Ctrl+Shift+C</span></button>
+  <div class="drop-sep"></div>
+  <button class="drop-item" id="ctxInsert">插入序列…</button>
+  <button class="drop-item" id="ctxDelete">删除选区</button>
+  <div class="drop-sep"></div>
+  <button class="drop-item" id="ctxSelectAll">全选 <span style="color:#5a5f78;float:right">Ctrl+A</span></button>
+  <div class="drop-sep"></div>
+  <button class="drop-item" id="ctxAddPrimer">添加引物…</button>
+  <div class="drop-sep" id="ctxPrimerSep"></div>
+  <button class="drop-item" id="ctxEditPrimer">编辑引物…</button>
+  <button class="drop-item" id="ctxCopyPrimer">复制引物序列</button>
+  <button class="drop-item" id="ctxDelPrimer">删除引物</button>
+</div>
+
+<!-- Edit Modal -->
+<div id="editModal" class="modal-overlay" style="display:none">
+  <div class="modal-box">
+    <div class="modal-title" id="modalTitle"></div>
+    <div class="modal-body" id="modalBody"></div>
+    <div class="modal-actions">
+      <button class="btn-cancel" id="modalCancel">取消</button>
+      <button class="btn-ok" id="modalOK">确认</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════ Codon & Utils ═══════
+const CODON={};['TTT:F','TTC:F','TTA:L','TTG:L','TCT:S','TCC:S','TCA:S','TCG:S','TAT:Y','TAC:Y','TAA:*','TAG:*','TGT:C','TGC:C','TGA:*','TGG:W','CTT:L','CTC:L','CTA:L','CTG:L','CCT:P','CCC:P','CCA:P','CCG:P','CAT:H','CAC:H','CAA:Q','CAG:Q','CGT:R','CGC:R','CGA:R','CGG:R','ATT:I','ATC:I','ATA:I','ATG:M','ACT:T','ACC:T','ACA:T','ACG:T','AAT:N','AAC:N','AAA:K','AAG:K','AGT:S','AGC:S','AGA:R','AGG:R','GTT:V','GTC:V','GTA:V','GTG:V','GCT:A','GCC:A','GCA:A','GCG:A','GAT:D','GAC:D','GAA:E','GAG:E','GGT:G','GGC:G','GGA:G','GGG:G'].forEach(s=>{const[k,v]=s.split(':');CODON[k]=v});
+const CODON3={};['TTT:Phe','TTC:Phe','TTA:Leu','TTG:Leu','TCT:Ser','TCC:Ser','TCA:Ser','TCG:Ser','TAT:Tyr','TAC:Tyr','TAA:Ter','TAG:Ter','TGT:Cys','TGC:Cys','TGA:Ter','TGG:Trp','CTT:Leu','CTC:Leu','CTA:Leu','CTG:Leu','CCT:Pro','CCC:Pro','CCA:Pro','CCG:Pro','CAT:His','CAC:His','CAA:Gln','CAG:Gln','CGT:Arg','CGC:Arg','CGA:Arg','CGG:Arg','ATT:Ile','ATC:Ile','ATA:Ile','ATG:Met','ACT:Thr','ACC:Thr','ACA:Thr','ACG:Thr','AAT:Asn','AAC:Asn','AAA:Lys','AAG:Lys','AGT:Ser','AGC:Ser','AGA:Arg','AGG:Arg','GTT:Val','GTC:Val','GTA:Val','GTG:Val','GCT:Ala','GCC:Ala','GCA:Ala','GCG:Ala','GAT:Asp','GAC:Asp','GAA:Glu','GAG:Glu','GGT:Gly','GGC:Gly','GGA:Gly','GGG:Gly'].forEach(s=>{const[k,v]=s.split(':');CODON3[k]=v});
+// Find ORFs ≥ minAA in a translated amino acid string. Returns Set of valid AA indices.
+function findValidORFs(aaStr,minAA){
+  const valid=new Set();
+  let orfStart=-1;
+  for(let i=0;i<aaStr.length;i++){
+    if(aaStr[i]==='M'&&orfStart<0)orfStart=i;
+    if(aaStr[i]==='*'&&orfStart>=0){
+      if(i-orfStart>=minAA)for(let k=orfStart;k<=i;k++)valid.add(k);
+      orfStart=-1;
+    }
+  }
+  // Handle ORF running to end without stop
+  if(orfStart>=0&&aaStr.length-orfStart>=minAA)for(let k=orfStart;k<aaStr.length;k++)valid.add(k);
+  return valid;
+}
+const RC={'A':'T','T':'A','C':'G','G':'C','N':'N','R':'Y','Y':'R','S':'S','W':'W','K':'M','M':'K','B':'V','V':'B','D':'H','H':'D'};
+function revComp(s){let r='';for(let i=s.length-1;i>=0;i--)r+=RC[s[i]]||s[i];return r}
+function translate(seq,f){let s=seq.toUpperCase();if(f>0)s=s.slice(f-1);else{s=revComp(s);s=s.slice(Math.abs(f)-1)}let aa='';for(let i=0;i+3<=s.length;i+=3)aa+=CODON[s.substr(i,3)]||'X';return aa}
+function calcTm(seq){
+  const s=seq.toUpperCase().replace(/[^ATCG]/g,'');
+  if(!s.length)return 0;
+  const gc=(s.match(/[GC]/g)||[]).length,at=s.length-gc;
+  if(s.length<=13)return at*2+gc*4;
+  return Math.round((64.9+41*(gc-16.4)/s.length)*10)/10;
+}
+function calcGC(seq){const s=seq.toUpperCase().replace(/[^ATCG]/g,'');if(!s.length)return 0;return Math.round((s.match(/[GC]/g)||[]).length/s.length*1000)/10}
+
+// ═══════ Enzyme DB ═══════
+const ENZYMES=[
+  // 6-bp cutters (corrected cut positions: c = bases before ↓ on top strand)
+  {n:'EcoRI',s:'GAATTC',c:1},{n:'BamHI',s:'GGATCC',c:1},{n:'HindIII',s:'AAGCTT',c:1},{n:'PstI',s:'CTGCAG',c:5},{n:'SalI',s:'GTCGAC',c:1},{n:'XhoI',s:'CTCGAG',c:1},{n:'NotI',s:'GCGGCCGC',c:2},{n:'XbaI',s:'TCTAGA',c:1},{n:'NdeI',s:'CATATG',c:2},{n:'NcoI',s:'CCATGG',c:1},{n:'SpeI',s:'ACTAGT',c:1},{n:'SacI',s:'GAGCTC',c:5},{n:'KpnI',s:'GGTACC',c:5},{n:'SmaI',s:'CCCGGG',c:3},{n:'ApaI',s:'GGGCCC',c:5},{n:'EcoRV',s:'GATATC',c:3},{n:'SphI',s:'GCATGC',c:5},{n:'NsiI',s:'ATGCAT',c:5},{n:'BglII',s:'AGATCT',c:1},{n:'MluI',s:'ACGCGT',c:1},{n:'NruI',s:'TCGCGA',c:3},{n:'PvuII',s:'CAGCTG',c:3},{n:'ClaI',s:'ATCGAT',c:2},{n:'XmaI',s:'CCCGGG',c:1},{n:'SacII',s:'CCGCGG',c:4},{n:'StuI',s:'AGGCCT',c:3},{n:'SnaBI',s:'TACGTA',c:3},{n:'AgeI',s:'ACCGGT',c:1},{n:'AflII',s:'CTTAAG',c:1},{n:'AvrII',s:'CCTAGG',c:1},{n:'BspHI',s:'TCATGA',c:1},{n:'DraI',s:'TTTAAA',c:3},{n:'HpaI',s:'GTTAAC',c:3},{n:'PmlI',s:'CACGTG',c:3},{n:'ScaI',s:'AGTACT',c:3},{n:'BspEI',s:'TCCGGA',c:1},{n:'FseI',s:'GGCCGGCC',c:6},
+  // 4-bp cutters
+  {n:'DpnII',s:'GATC',c:0},{n:'MseI',s:'TTAA',c:1},{n:'NlaIII',s:'CATG',c:4},{n:'Sau3AI',s:'GATC',c:0},{n:'TaqI',s:'TCGA',c:1},{n:'HaeIII',s:'GGCC',c:2},{n:'AluI',s:'AGCT',c:2},{n:'MspI',s:'CCGG',c:1},{n:'HinfI',s:'GANTC',c:1},{n:'DdeI',s:'CTNAG',c:1},{n:'BfuCI',s:'GATC',c:0}
+];
+function findCutSites(seq){const s=seq.toUpperCase(),r=[];for(const e of ENZYMES){const p=e.s;let st=[];for(let i=0;i<=s.length-p.length;i++)if(s.substr(i,p.length)===p)st.push({pos:i,cut:i+e.c});const rp=revComp(p);if(rp!==p)for(let i=0;i<=s.length-rp.length;i++)if(s.substr(i,rp.length)===rp)st.push({pos:i,cut:i+(p.length-e.c),rev:!0});if(st.length){st.sort((a,b)=>a.pos-b.pos);r.push({name:e.n,seq:e.s,cutPos:e.c,sites:st,count:st.length})}}r.sort((a,b)=>b.count-a.count);return r}
+
+// ═══════ Feature Colors ═══════
+const FC={cds:'#2bcc8a',gene:'#30b8d0',promoter:'#f0a030','rep_origin':'#e04040',origin:'#e04040','misc_feature':'#8b8fa8',terminator:'#e05070',rbs:'#a060e0','primer_bind':'#4f8cff',primer:'#4f8cff',misc:'#8b8fa8',source:'transparent',
+  // Extended types for SnapGene compatibility
+  enhancer:'#f0c040',intron:'#8ba8c8',exon:'#50b870','polya_signal':'#d070a0',polya:'#d070a0','sig_peptide':'#70b0b0',mrna:'#60c0a0',rrna:'#c0a060',trna:'#a0c060','misc_rna':'#b0a0d0','protein_bind':'#d0a060',ltr:'#c08080',regulatory:'#e0a050','5\'utr':'#a0c0e0','3\'utr':'#e0a0c0',mat_peptide:'#70c080','misc_binding':'#b0b060','modified_base':'#c0c0c0',variation:'#d0d060',sts:'#a0b0c0'};
+const Tint={};for(const k in FC){if(FC[k]!=='transparent'){const c=FC[k];Tint[k]=c.length===7?c+'44':c}}
+
+// ═══════ Parser ═══════
+function parseGB(text){
+  text=text.replace(/\r\n/g,'\n').replace(/\r/g,'\n');
+  const lines=text.split('\n');const doc={locus:'',accession:'',definition:'',organism:'',sequence:'',circular:!0,features:[]};
+  let i=0;
+  while(i<lines.length){
+    const l=lines[i];
+    if(/^LOCUS/.test(l)){const m=l.match(/^(LOCUS\s+)(\S+)/);if(m)doc.locus=m[2];doc.circular=/CIRCULAR/i.test(l);i++}
+    else if(/^DEFINITION/.test(l)){doc.definition=l.replace(/^DEFINITION\s+/,'');i++;while(i<lines.length&&/^\s/.test(lines[i])&&!/^(ACCESSION|VERSION|KEYWORDS|SOURCE|ORGANISM|REFERENCE|COMMENT|FEATURES|ORIGIN)/.test(lines[i])){if(lines[i].trim())doc.definition+=' '+lines[i].trim();i++}}
+    else if(/^ORIGIN/.test(l)){i++;let seq='';while(i<lines.length){if(lines[i].trim()==='//')break;seq+=lines[i].replace(/[0-9\s]/g,'');i++}doc.sequence=seq.toUpperCase();break}
+    else i++;
+  }
+  const fi=text.indexOf('FEATURES'),oi=text.indexOf('ORIGIN');
+  if(fi>=0&&oi>fi){
+    const featText=text.slice(fi,oi);const fl=featText.split('\n');let cf=null;
+    for(let li=1;li<fl.length;li++){
+      const l=fl[li];
+      // Feature start: 5 spaces + type + 2+ spaces + location
+      const fm=l.match(/^ {5}(\S+)\s{2,}(.+)$/);
+      if(fm){
+        if(cf)doc.features.push(cf);
+        cf={type:fm[1],start:0,end:0,strand:1,label:'',gene:'',product:'',notes:[]};
+        let s=fm[2].trim(),str=1;
+        if(s.startsWith('complement(')){str=-1;s=s.slice(11,-1)}
+        // Handle complement(join(...)) or complement(order(...))
+        while(s.startsWith('complement(')){str*=-1;s=s.slice(11,-1)}
+        if(/^(join|order)\(/.test(s))s=s.slice(s.indexOf('(')+1,-1).split(',')[0].trim();
+        s=s.replace(/[<>]/g,'');
+        const p=s.split('..');if(p.length===2){cf.start=Math.min(parseInt(p[0])-1,parseInt(p[1])-1);cf.end=Math.max(parseInt(p[0]),parseInt(p[1]))}else{cf.start=parseInt(s)-1;cf.end=cf.start+1}
+        cf.strand=str;
+      }else{
+        // Qualifiers: 21 spaces + /key=value
+        const q=l.match(/^ {21}\/(\w+)=(.+)$/);
+        if(q&&cf){
+          const k=q[1].toLowerCase(),v=q[2].replace(/^["']|["']$/g,'').trim();
+          if(k==='label')cf.label=v;
+          if(k==='gene')cf.gene=v;
+          if(k==='product')cf.product=v;
+          if(k==='note')cf.notes.push(v);
+        }
+        // Multi-line value continuation (indented on next line)
+        if(l.match(/^\s{21}\S/)&&cf){/* continuation handled, skip */}
+      }
+    }
+    if(cf)doc.features.push(cf);
+  }
+  return doc;
+}
+function parseFA(text){text=text.replace(/\r\n/g,'\n').replace(/\r/g,'\n');const doc={locus:'',accession:'',definition:'',organism:'',sequence:'',circular:!0,features:[]};const lines=text.split('\n');let inSeq=!1,seq=[];for(const l of lines){if(l.startsWith('>')){doc.locus=l.slice(1).trim();doc.definition=doc.locus;inSeq=!0}else if(inSeq)seq.push(l.replace(/[\s0-9]/g,'').toUpperCase())}doc.sequence=seq.join('');return doc}
+function parseDNA(buf){
+  const dv=new DataView(buf);const doc={locus:'',accession:'',definition:'',organism:'',sequence:'',circular:!0,features:[]};
+  let off=0;
+  // ── Header: cookie byte + length + "SnapGene" ──
+  const cookie=dv.getUint8(off++);
+  if(cookie!==0x09){
+    // Not standard SnapGene cookie — try alternate detection
+    console.warn('DNA cookie 0x'+cookie.toString(16)+', expected 0x09');
+  }
+  let hlen=dv.getUint32(off,false);// big-endian (SnapGene standard)
+  if(hlen>1000||hlen<8){
+    // Fallback: try little-endian (some tools may write LE)
+    hlen=dv.getUint32(off,true);
+    if(hlen>1000||hlen<8){throw Error('Invalid header length')}
+  }
+  off+=4;
+  // Read header and check for "SnapGene" magic
+  const hdrBytes=new Uint8Array(buf,off,Math.min(hlen,buf.byteLength-off));
+  const hdrStr=String.fromCharCode(...hdrBytes.slice(0,Math.min(8,hdrBytes.length)));
+  if(!hdrStr.startsWith('SnapGene')){throw Error('Not a SnapGene file (header: '+hdrStr+')')}
+  off+=hlen; // skip entire header data (variable length)
+
+  // ── Data packets ──
+  while(off+5<=buf.byteLength){
+    const bt=dv.getUint8(off++);
+    const sz=dv.getUint32(off,false);off+=4; // big-endian
+    if(sz>buf.byteLength-off){console.warn('Block 0x'+bt.toString(16)+' size '+sz+' exceeds file');break}
+    const blockEnd=off+sz;
+    try{
+      if(bt===0&&sz>=1){
+        // Sequence packet
+        const flags=dv.getUint8(off);
+        doc.circular=!!(flags&1);
+        const seqBytes=new Uint8Array(buf,off+1,sz-1);
+        let sq='';for(let i=0;i<seqBytes.length;i++){const b=seqBytes[i];if((b>=65&&b<=90)||(b>=97&&b<=122))sq+=String.fromCharCode(b)}
+        doc.sequence=sq.toUpperCase();
+        console.log('[pangu] Sequence decoded:',sq.length,'bp');
+      }else if(bt===6&&sz>0){
+        // Notes packet (XML)
+        const x=new TextDecoder('utf-8').decode(new Uint8Array(buf,off,sz)).replace(/\0/g,'');
+        const dm=x.match(/<Description[^>]*>([^<]*)<\/Description>/);if(dm)doc.definition=dm[1];
+        const lm=x.match(/<CustomMapLabel[^>]*>([^<]*)<\/CustomMapLabel>/);if(lm)doc.locus=lm[1];
+        if(!doc.locus){const nm=x.match(/<Name[^>]*>([^<]*)<\/Name>/);if(nm)doc.locus=nm[1]}
+      }else if(bt===0x0A&&sz>0){
+        // Features packet (XML)
+        const rawXml=new TextDecoder('utf-8').decode(new Uint8Array(buf,off,sz)).replace(/\0/g,'');
+        console.log('[pangu] Features XML length:',rawXml.length,'chars');
+        const xd=new DOMParser().parseFromString(rawXml,'text/xml');
+        // Check for parse errors
+        const pe=xd.querySelector('parsererror');
+        if(pe)console.warn('[pangu] XML parse error:',pe.textContent);
+        xd.querySelectorAll('Feature').forEach(fn=>{
+          const f={type:fn.getAttribute('type')||'misc',start:0,end:0,strand:1,label:fn.getAttribute('name')||'',gene:'',product:'',notes:[]};
+          const dir=fn.getAttribute('directionality')||'0';
+          f.strand=dir==='2'?-1:1;
+          let mi=Infinity,ma=0;
+          // Parse Segment ranges (handle "start-end", "start..end", "start end")
+          let segColor='';
+          fn.querySelectorAll('Segment').forEach(seg=>{
+            const r=seg.getAttribute('range')||'';
+            const p=r.split(/[-.\s]+/).map(Number).filter(n=>!isNaN(n));
+            if(p.length>=2){if(p[0]<mi)mi=p[0];if(p[p.length-1]>ma)ma=p[p.length-1]}
+            if(!segColor&&seg.getAttribute('color'))segColor=seg.getAttribute('color');
+          });
+          if(segColor)f.color=segColor; // custom color from SnapGene
+          if(mi!==Infinity&&mi>0){f.start=mi-1;f.end=ma}
+          else console.warn('[pangu] Feature "'+f.label+'" has no valid range');
+          // Parse qualifiers
+          fn.querySelectorAll('Q').forEach(q=>{
+            const n=q.getAttribute('name'),vn=q.querySelector('V');
+            if(n&&vn){const t=vn.getAttribute('text')||vn.getAttribute('predef')||vn.getAttribute('int')||vn.textContent||'';
+              if(n==='label')f.label=t;if(n==='gene')f.gene=t;if(n==='product')f.product=t;if(n==='note')f.notes.push(t)}
+          });
+          // Also check for label in direct attribute if qualifier didn't set it
+          if(!f.label)f.label=fn.getAttribute('name')||'';
+          doc.features.push(f);
+        });
+        console.log('[pangu] Parsed',doc.features.length,'features from .dna');
+      }else if(bt===0x05&&sz>0){
+        // Primers packet (XML)
+        const pXml=new TextDecoder('utf-8').decode(new Uint8Array(buf,off,sz)).replace(/\0/g,'');
+        const pd=new DOMParser().parseFromString(pXml,'text/xml');
+        pd.querySelectorAll('Primer').forEach(pn=>{
+          const f={type:'primer_bind',start:0,end:0,strand:1,label:pn.getAttribute('name')||'primer',gene:'',product:'',notes:[]};
+          const bs=pn.querySelector('BindingSite');
+          if(bs){
+            const loc=bs.getAttribute('location')||bs.getAttribute('range')||'';
+            const pp=loc.split(/[-.\s]+/).map(Number).filter(n=>!isNaN(n));
+            if(pp.length>=2){f.start=Math.min(pp[0],pp[1])-1;f.end=Math.max(pp[0],pp[1])}
+            const bdir=bs.getAttribute('boundStrand')||'0';
+            if(bdir==='1')f.strand=-1;
+          }
+          if(f.end>f.start)doc.features.push(f);
+        });
+      }
+      // Skip: type 0x08=alignment, others
+    }catch(e){console.warn('Error parsing block 0x'+bt.toString(16)+':',e)}
+    off=blockEnd; // always advance to next block
+  }
+  return doc;
+}
+function detectAndParse(t,bin){
+  if(bin){
+    try{return parseDNA(t)}catch(e){
+      // Fallback: try reading as text (some .dna files are text-based, e.g. ApE format)
+      console.warn('Binary parse failed:',e.message,', trying text...');
+      try{const txt=new TextDecoder().decode(new Uint8Array(t));return detectAndParse(txt,false)}catch(e2){throw e}
+    }
+  }
+  t=t.trim();if(/^LOCUS|FEATURES/.test(t))return parseGB(t);if(t.startsWith('>'))return parseFA(t);
+  const g=parseGB(t);if(g.sequence&&g.sequence.length>10)return g;return parseFA(t);
+}
+
+// ═══════ Track Assignment (avoid feature overlap) ═══════
+function assignTracks(features, len) {
+  const items = features.filter(f => f.type !== 'source' && f.start != null && f.end != null)
+    .map(f => ({ f, s: f.start, e: f.end })).sort((a, b) => a.s - b.s);
+  const ends = []; // end position of last feature per track
+  const map = new Map();
+  for (const it of items) {
+    let placed = false;
+    for (let t = 0; t < ends.length; t++) {
+      if (it.s >= ends[t]) { ends[t] = it.e; map.set(it.f, t); placed = true; break; }
+    }
+    if (!placed) { map.set(it.f, ends.length); ends.push(it.e); }
+  }
+  return { map, count: ends.length };
+}
+// Feature label: prefer /label, fallback to type (exon, intron, polyA…)
+function featLabel(f) { return f.label || f.type || ''; }
+// Enzyme cut pattern display lines
+function enzCutLines(enzData, sitePos) {
+  const seq=enzData.seq, c=enzData.cutPos, rc=seq.length-c;
+  const rs=revComp(seq);
+  return [
+    enzData.name,
+    "5'─ "+seq.slice(0,c)+" ↓ "+seq.slice(c)+" ─3'",
+    "3'─ "+rs.slice(0,rc)+" ↑ "+rs.slice(rc)+" ─5'",
+    '位置: '+(sitePos+1)+' nt'
+  ];
+}
+
+// ═══════ Map Renderer ═══════
+class Renderer{
+  constructor(cv){
+    this.cv=cv;this.ctx=cv.getContext('2d');this.doc=null;this.dpr=window.devicePixelRatio||1;
+    this.w=0;this.h=0;this.hovered=null;this.hoverEnz=null;this.enz=[];
+    this._mx=0;this._my=0;this._tracks=null;
+    // Zoom & Pan state
+    this._zoom=1;this._panX=0;this._panY=0;
+    this._autoLinear=false; // true when auto-switched from circular to linear
+    this._dragging=false;this._dragX=0;this._dragY=0;this._dragPX=0;this._dragPY=0;
+    this._resize();
+    const self=this;
+    // Mouse hover
+    cv.addEventListener('mousemove',e=>{
+      const r=cv.getBoundingClientRect();self._mx=e.clientX-r.left;self._my=e.clientY-r.top;
+      if(self._dragging){
+        self._panX=self._dragPX+(e.clientX-self._dragX);
+        if(document.getElementById('mapMode').value!=='linear')
+          self._panY=self._dragPY+(e.clientY-self._dragY);
+        self.draw();return;
+      }
+      self._hit();self.draw();
+    });
+    cv.addEventListener('mouseleave',()=>{self.hovered=null;self.hoverEnz=null;self.draw()});
+    // Drag to pan
+    cv.addEventListener('mousedown',e=>{
+      if(self._zoom>1.01){self._dragging=true;self._dragX=e.clientX;self._dragY=e.clientY;self._dragPX=self._panX;self._dragPY=self._panY;cv.style.cursor='grabbing'}
+    });
+    window.addEventListener('mouseup',()=>{if(self._dragging){self._dragging=false;cv.style.cursor=self._zoom>1.01?'grab':'default'}});
+    // Scroll wheel zoom (anchored on circle center) + auto circular→linear switch
+    cv.addEventListener('wheel',e=>{
+      e.preventDefault();
+      const oldZ=self._zoom;
+      const newZ=Math.max(0.5,Math.min(50,oldZ*(e.deltaY<0?1.15:1/1.15)));
+      // Anchor on canvas center (plasmid circle center)
+      const anchorX=self.w/2, anchorY=self.h/2;
+      self._panX=anchorX-(anchorX-self._panX)*(newZ/oldZ);
+      if(document.getElementById('mapMode').value!=='linear')
+        self._panY=anchorY-(anchorY-self._panY)*(newZ/oldZ);
+      self._zoom=newZ;
+      // Auto-switch: circular → linear when zoom exceeds 100%
+      const modeEl=document.getElementById('mapMode');
+      if(modeEl.value==='circular'&&newZ>1){
+        modeEl.value='linear';self._autoLinear=true;
+        self._panX=0;self._panY=0; // reset pan for linear layout
+      }else if(modeEl.value==='linear'&&self._autoLinear&&newZ<=1){
+        modeEl.value='circular';self._autoLinear=false;
+        self._panX=0;self._panY=0;
+      }
+      self._syncZoomUI();self.draw();
+    },{passive:false});
+    window.addEventListener('resize',()=>self._resize());
+  }
+  _syncZoomUI(){
+    const pct=Math.round(this._zoom*100);
+    const sl=document.getElementById('mapZoom');if(sl)sl.value=pct;
+    const lb=document.getElementById('mapZoomLbl');if(lb)lb.textContent=pct+'%';
+    this.cv.style.cursor=this._zoom>1.01?'grab':'default';
+  }
+  setZoom(pct){
+    const newZ=pct/100;const cx=this.w/2,cy=this.h/2;
+    this._panX=cx-(cx-this._panX)*(newZ/this._zoom);
+    this._panY=cy-(cy-this._panY)*(newZ/this._zoom);
+    this._zoom=newZ;this._syncZoomUI();this.draw();
+  }
+  resetZoom(){this._zoom=1;this._panX=0;this._panY=0;this._syncZoomUI();this.draw()}
+  // World coords (screen → world, accounting for zoom+pan)
+  get _wmx(){return (this._mx-this._panX)/this._zoom}
+  get _wmy(){return (this._my-this._panY)/this._zoom}
+  _resize(){const wrap=this.cv.parentElement;if(!wrap)return;const w=wrap.clientWidth,h=wrap.clientHeight;if(w<10||h<10)return;this.w=w;this.h=h;const dpr=this.dpr;this.cv.style.width=w+'px';this.cv.style.height=h+'px';this.cv.width=w*dpr;this.cv.height=h*dpr;this.draw()}
+  load(doc,enz){this.doc=doc;this.enz=enz||[];if(doc)this._tracks=assignTracks(doc.features,doc.sequence.length);this.resetZoom()}
+  draw(){
+    const ctx=this.ctx,dpr=this.dpr,w=this.w,h=this.h;if(!w||!h)return;
+    ctx.setTransform(1,0,0,1,0,0);ctx.scale(dpr,dpr);
+    ctx.fillStyle='#0e1018';ctx.fillRect(0,0,w,h);
+    if(!this.doc||!this.doc.sequence||this.doc.sequence.length<5)return;
+    const ph=document.getElementById('placeholder');if(ph)ph.style.display='none';
+    // Apply zoom + pan (linear: no vertical pan, keeps backbone fixed)
+    const isLinear=document.getElementById('mapMode').value==='linear';
+    ctx.save();
+    ctx.translate(this._panX, isLinear?0:this._panY);
+    ctx.scale(this._zoom,this._zoom);
+    if(isLinear)this._drawL(ctx,w,h);else this._drawC(ctx,w,h);
+    ctx.restore();
+  }
+  _drawC(ctx,w,h){
+    const d=this.doc,len=d.sequence.length;if(!len)return;
+    const cx=w/2, cy=h/2; // centered
+    const trackW=12, trackGap=6, trackSpace=2;
+    const nTracks=this._tracks?this._tracks.count:1;
+    const outerNeeded=trackGap+nTracks*(trackW+trackSpace)+50;
+    const R=Math.max(40, Math.min(w/2, h/2)-outerNeeded);
+
+    const iz=1/this._zoom; // inverse zoom for fixed-size labels
+
+    // ── Backbone circle ──
+    ctx.beginPath();ctx.arc(cx,cy,R,0,Math.PI*2);ctx.strokeStyle='#4a5068';ctx.lineWidth=2.5*iz;ctx.stroke();
+
+    // ── Tick marks (inside backbone) ──
+    const step=len>5000?500:len>2000?200:100;
+    ctx.font=(12*iz)+'px system-ui,sans-serif';ctx.textAlign='center';ctx.fillStyle='#6a6f88';
+    for(let p=0;p<len;p+=step){
+      const a=this._a(p/len);
+      ctx.beginPath();ctx.moveTo(cx+(R-2*iz)*Math.cos(a),cy+(R-2*iz)*Math.sin(a));
+      ctx.lineTo(cx+(R-7*iz)*Math.cos(a),cy+(R-7*iz)*Math.sin(a));
+      ctx.strokeStyle='#3a4050';ctx.lineWidth=iz;ctx.stroke();
+      if(p%(step*5)===0){ctx.save();ctx.translate(cx+(R-16*iz)*Math.cos(a),cy+(R-16*iz)*Math.sin(a));ctx.rotate(a+Math.PI/2);ctx.fillText(p+'',0,4*iz);ctx.restore()}
+    }
+
+    // ── Sequence bases at high zoom (along the circle) ──
+    const arcPerBp=(2*Math.PI*R)/len;
+    const screenArcPerBp=arcPerBp*this._zoom;
+    if(screenArcPerBp>7){
+      const seq=d.sequence,rs=revComp(seq);
+      const bc={'A':'#4f8cff','T':'#f0a030','C':'#2bcc8a','G':'#e05070','N':'#8b8fa8'};
+      // Font size: fit within arc space, cap at 16px on screen
+      const fontSize=Math.min(arcPerBp*0.85, 16*iz);
+      // Visible viewport in world coords
+      const vx0=-this._panX/this._zoom-20,vx1=(w-this._panX)/this._zoom+20;
+      const vy0=-this._panY/this._zoom-20,vy1=(h-this._panY)/this._zoom+20;
+      ctx.font='bold '+fontSize+'px Consolas,monospace';ctx.textAlign='center';ctx.textBaseline='middle';
+      for(let i=0;i<len;i++){
+        const a=this._a(i/len);
+        const bx=cx+R*Math.cos(a),by=cy+R*Math.sin(a);
+        if(bx<vx0||bx>vx1||by<vy0||by>vy1)continue;
+        // 5' base (outer side)
+        ctx.save();ctx.translate(cx+(R+fontSize*0.6)*Math.cos(a),cy+(R+fontSize*0.6)*Math.sin(a));
+        ctx.rotate(a+Math.PI/2);
+        ctx.fillStyle=bc[seq[i]]||'#8b8fa8';ctx.fillText(seq[i],0,0);ctx.restore();
+        // 3' base (inner side)
+        ctx.save();ctx.translate(cx+(R-fontSize*0.6)*Math.cos(a),cy+(R-fontSize*0.6)*Math.sin(a));
+        ctx.rotate(a+Math.PI/2);
+        ctx.fillStyle=bc[rs[len-1-i]]||'#8b8fa8';ctx.fillText(rs[len-1-i],0,0);ctx.restore();
+      }
+      // Position numbers every 10bp
+      if(screenArcPerBp>10){
+        ctx.font=(10*iz)+'px system-ui,sans-serif';ctx.fillStyle='#6a6f88';
+        for(let i=0;i<len;i+=10){
+          const a=this._a(i/len);
+          const bx=cx+R*Math.cos(a),by=cy+R*Math.sin(a);
+          if(bx<vx0||bx>vx1||by<vy0||by>vy1)continue;
+          ctx.save();ctx.translate(cx+(R+fontSize*1.6)*Math.cos(a),cy+(R+fontSize*1.6)*Math.sin(a));
+          ctx.rotate(a+Math.PI/2);ctx.textAlign='center';ctx.textBaseline='middle';
+          ctx.fillText((i+1)+'',0,0);ctx.restore();
+        }
+      }
+    }
+
+    // ── Feature arcs on OUTER concentric tracks ──
+    const tMap=this._tracks?this._tracks.map:null;
+    for(const f of d.features){
+      if(f.type==='source'||f.start==null||f.end==null)continue;
+      const track=tMap?tMap.get(f)||0:0;
+      const fR=R+trackGap+track*(trackW+trackSpace)+trackW/2;
+      let s=f.start%len, e=f.end%len;
+      if(s<0)s+=len; if(e<=0)e+=len;
+      const col=f.color||FC[f.type.toLowerCase()]||'#888';
+      const hl=f===this.hovered, lw=hl?trackW+2:trackW;
+      ctx.lineCap='butt';
+      if(e<=s){
+        ctx.beginPath();ctx.arc(cx,cy,fR,this._a(s/len),Math.PI*2-Math.PI/2,false);ctx.strokeStyle=col;ctx.lineWidth=lw;ctx.stroke();
+        ctx.beginPath();ctx.arc(cx,cy,fR,-Math.PI/2,this._a(e/len),false);ctx.strokeStyle=col;ctx.lineWidth=lw;ctx.stroke();
+      }else{
+        ctx.beginPath();ctx.arc(cx,cy,fR,this._a(s/len),this._a(e/len),false);ctx.strokeStyle=col;ctx.lineWidth=lw;ctx.stroke();
+      }
+    }
+
+    // ── Feature labels (outside outermost track) ──
+    const labelR=R+trackGap+nTracks*(trackW+trackSpace)+4;
+    ctx.textBaseline='middle';
+    for(const f of d.features){
+      if(f.type==='source')continue;
+      const lbl=featLabel(f); if(!lbl)continue;
+      let s=f.start%len, e=f.end%len;
+      if(s<0)s+=len; if(e<=0)e+=len;
+      const mid=e<=s?(s+(len-s+e)/2)%len:(s+e)/2;
+      const a=this._a(mid/len);
+      ctx.save();
+      ctx.translate(cx+labelR*Math.cos(a),cy+labelR*Math.sin(a));
+      let rot=a+Math.PI/2;
+      if(rot>Math.PI/2&&rot<Math.PI*1.5)rot+=Math.PI;
+      ctx.rotate(rot);
+      ctx.font=(13*iz)+'px system-ui,sans-serif';ctx.textAlign='center';
+      const m=ctx.measureText(lbl);
+      ctx.fillStyle='rgba(14,16,24,0.8)';ctx.fillRect(-m.width/2-3,-8*iz,m.width+6,16*iz);
+      ctx.fillStyle=f.color||FC[f.type.toLowerCase()]||'#c0c4d8';
+      ctx.fillText(lbl,0,0);
+      ctx.restore();
+    }
+
+    // ── Enzyme & Primer: elbow lines + horizontal labels ──
+    const elbowR=labelR+12;
+    this._enzDots=[];
+    function drawElbowLabels(pts,color,dotColor,cx,cy,R,elbowR,ctx,minGap,iz){
+      // Bidirectional label distribution using available space
+      const boundsMin=cy-R-60*iz, boundsMax=cy+R+60*iz;
+      function distribute(arr){
+        if(!arr.length)return;
+        arr.sort((a,b)=>a.natY-b.natY);
+        for(const p of arr)p.labelY=p.natY;
+        // Push down
+        for(let i=1;i<arr.length;i++){if(arr[i].labelY-arr[i-1].labelY<minGap)arr[i].labelY=arr[i-1].labelY+minGap}
+        // If overflow at bottom, pull up from bottom
+        if(arr[arr.length-1].labelY>boundsMax){
+          arr[arr.length-1].labelY=boundsMax;
+          for(let i=arr.length-2;i>=0;i--){if(arr[i+1].labelY-arr[i].labelY<minGap)arr[i].labelY=arr[i+1].labelY-minGap}
+        }
+        // Clamp at top
+        if(arr[0].labelY<boundsMin){
+          arr[0].labelY=boundsMin;
+          for(let i=1;i<arr.length;i++){if(arr[i].labelY-arr[i-1].labelY<minGap)arr[i].labelY=arr[i-1].labelY+minGap}
+        }
+      }
+      const right=pts.filter(p=>p.isRight);
+      const left=pts.filter(p=>!p.isRight);
+      distribute(right);distribute(left);
+      // Draw each label: radial → horizontal (two clean segments, one turn)
+      for(const e of pts){
+        const a=e.a;
+        const sinA=Math.sin(a),cosA=Math.cos(a);
+        const hEndX=e.isRight?cx+elbowR+30:cx-elbowR-30;
+        let turnX,turnY;
+        if(Math.abs(sinA)>0.15){
+          // Extend radially from center until hitting y=labelY
+          const r=(e.labelY-cy)/sinA;
+          turnX=cx+r*cosA;
+          turnY=e.labelY;
+        }else{
+          // Near-horizontal: extend to elbowR (horizontal segment ~flat)
+          turnX=cx+elbowR*cosA;
+          turnY=cy+elbowR*sinA;
+        }
+        // Radial segment → horizontal segment
+        ctx.strokeStyle=color;ctx.lineWidth=iz;
+        ctx.beginPath();ctx.moveTo(e.bx,e.by);
+        ctx.lineTo(turnX,turnY);ctx.lineTo(hEndX,e.labelY);ctx.stroke();
+        // Dot on backbone
+        ctx.fillStyle=dotColor;ctx.beginPath();ctx.arc(e.bx,e.by,2.5*iz,0,Math.PI*2);ctx.fill();
+        // Label text
+        ctx.font=(15*iz)+'px system-ui,sans-serif';
+        ctx.textAlign=e.isRight?'left':'right';
+        ctx.textBaseline='middle';
+        ctx.fillStyle=color.replace(/[\d.]+\)$/,'0.9)');
+        ctx.fillText(e.name,hEndX+(e.isRight?4:-4),e.labelY);
+      }
+    }
+    if(document.getElementById('showEnzOnMap').checked&&this.enz.length){
+      const _sU=document.querySelector('[data-enzf="unique"]').classList.contains('checked'),_sD=document.querySelector('[data-enzf="dual"]').classList.contains('checked'),_sA=document.querySelector('[data-enzf="all"]').classList.contains('checked');
+      const filtEnz=this.enz.filter(e=>(e.count===1&&_sU)||(e.count===2&&_sD)||(e.count>=3&&_sA));
+      const labeled=filtEnz.filter(e=>e.count<=2);
+      const unlabeled=filtEnz.filter(e=>e.count>2);
+      // Unlabeled: tick marks (fixed screen size)
+      ctx.strokeStyle='rgba(79,140,255,0.35)';ctx.lineWidth=iz;
+      for(const enz of unlabeled)for(const st of enz.sites){
+        const a=this._a(st.pos/len);
+        ctx.beginPath();ctx.moveTo(cx+(R-3*iz)*Math.cos(a),cy+(R-3*iz)*Math.sin(a));
+        ctx.lineTo(cx+(R+4*iz)*Math.cos(a),cy+(R+4*iz)*Math.sin(a));ctx.stroke();
+      }
+      // Labeled: collect elbow data
+      const enzPts=[];
+      for(const enz of labeled)for(const st of enz.sites){
+        const a=this._a(st.pos/len);
+        const bx=cx+R*Math.cos(a),by=cy+R*Math.sin(a);
+        const natY=cy+elbowR*Math.sin(a);
+        enzPts.push({name:enz.name,seq:enz.seq,cutPos:enz.cutPos,a,pos:st.pos,rev:st.rev,
+          bx,by,x:bx,y:by,isRight:Math.cos(a)>=0,natY,labelY:natY});
+      }
+      this._enzDots=enzPts;
+      drawElbowLabels(enzPts,'rgba(79,140,255,0.45)','rgba(79,140,255,0.7)',cx,cy,R,elbowR,ctx,16*iz,iz);
+    }
+    if(document.getElementById('showPrimers').checked){
+      const pfs=d.features.filter(f=>f.type==='primer_bind'||f.type==='primer');
+      const primerPts=[];
+      for(const f of pfs){
+        if(f.start==null||f.end==null)continue;
+        const mid=((f.start+f.end)/2)%len;
+        const a=this._a(mid/len);
+        const bx=cx+R*Math.cos(a),by=cy+R*Math.sin(a);
+        const natY=cy+(elbowR+8)*Math.sin(a);
+        primerPts.push({name:f.label||f.gene||'primer',a,bx,by,x:bx,y:by,
+          isRight:Math.cos(a)>=0,natY,labelY:natY});
+      }
+      drawElbowLabels(primerPts,'rgba(240,160,48,0.4)','rgba(240,160,48,0.6)',cx,cy,R,elbowR+8,ctx,16*iz,iz);
+    }
+
+    // ── Center label (plasmid name + size) ──
+    const cName=(d.locus||d.definition||'unnamed').replace(/<[^>]*>/g,'');
+    const displayName=cName.length>25?cName.slice(0,23)+'…':cName;
+    ctx.fillStyle='#e0e2ed';ctx.font='bold '+(17*iz)+'px system-ui,sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.fillText(displayName,cx,cy-10*iz);
+    ctx.fillStyle='#8b8fa8';ctx.font=(14*iz)+'px system-ui,sans-serif';ctx.fillText(len+' bp',cx,cy+12*iz);
+
+    // ── Hover tooltip (drawn in screen space) ──
+    if(this.hoverEnz){
+      ctx.save();ctx.setTransform(this.dpr,0,0,this.dpr,0,0);
+      const e=this.hoverEnz;
+      const lines=enzCutLines(e,e.pos);
+      const lh=18,pd=8,bw=280,bh=lines.length*lh+pd*2;
+      let tx=Math.min(this._mx+10,this.w-bw-10),ty=Math.max(10,this._my-bh-5);
+      ctx.fillStyle='rgba(16,18,30,0.95)';ctx.strokeStyle='#4f8cff';ctx.lineWidth=1;
+      ctx.beginPath();ctx.roundRect(tx,ty,bw,bh,8);ctx.fill();ctx.stroke();
+      ctx.fillStyle='#4f8cff';ctx.font='bold 13px system-ui,sans-serif';ctx.textAlign='left';ctx.textBaseline='top';
+      ctx.fillText(lines[0],tx+pd,ty+pd);
+      ctx.font='12px Consolas,monospace';ctx.fillStyle='#e0e2ed';
+      ctx.fillText(lines[1],tx+pd,ty+pd+lh);
+      ctx.fillText(lines[2],tx+pd,ty+pd+lh*2);
+      ctx.font='11px system-ui,sans-serif';ctx.fillStyle='#8b8fa8';
+      ctx.fillText(lines[3],tx+pd,ty+pd+lh*3);
+      ctx.restore();
+    }else if(this.hovered){
+      ctx.save();ctx.setTransform(this.dpr,0,0,this.dpr,0,0);
+      const f=this.hovered;
+      const lines=[featLabel(f),f.type+' '+(f.start+1)+'..'+f.end+(f.strand===-1?' (−)':' (+)'),(f.end-f.start)+' bp'];
+      if(f.gene)lines.push('gene: '+f.gene);if(f.product)lines.push(f.product);
+      const lh=16,pd=6,bw=240,bh=lines.length*lh+pd*2;
+      let tx=Math.min(this._mx+10,this.w-bw-10),ty=Math.max(10,this._my-bh-5);
+      ctx.fillStyle='rgba(16,18,30,0.95)';ctx.strokeStyle='#4f8cff';ctx.lineWidth=1;
+      ctx.beginPath();ctx.roundRect(tx,ty,bw,bh,6);ctx.fill();ctx.stroke();
+      ctx.fillStyle='#e0e2ed';ctx.font='bold 12px system-ui,sans-serif';ctx.textAlign='left';ctx.textBaseline='top';
+      ctx.fillText(lines[0],tx+pd,ty+pd);
+      ctx.font='11px system-ui,sans-serif';ctx.fillStyle='#8b8fa8';
+      for(let i=1;i<lines.length;i++)ctx.fillText(lines[i],tx+pd,ty+pd+i*lh);
+      ctx.restore();
+    }
+  }
+  _drawL(ctx,w,h){
+    const d=this.doc,len=d.sequence.length;if(!len)return;
+    const px=Math.min(50,w*0.06), rw=w-px*2; if(rw<10)return;
+    const sc=rw/len;
+    const iz=1/this._zoom; // inverse zoom for fixed-size elements
+    const trackH=16*iz, trackGap=14*iz, trackSpace=3*iz;
+    const nTracks=this._tracks?this._tracks.count:1;
+    const labelZoneTop=20;
+    const py=h*0.65*iz; // iz-compensated so backbone stays fixed on screen at 65%
+
+    // ── Title ──
+    ctx.fillStyle='#e0e2ed';ctx.font=(15*iz)+'px system-ui,sans-serif';ctx.textAlign='center';ctx.textBaseline='top';
+    ctx.fillText((d.locus||'unnamed')+' — '+len+' bp',w/2,8*iz);
+
+    // ── Enzyme indicators ABOVE backbone (with labels and lines) ──
+    this._enzDots=[];
+    if(document.getElementById('showEnzOnMap').checked&&this.enz.length){
+      const _sU=document.querySelector('[data-enzf="unique"]').classList.contains('checked'),_sD=document.querySelector('[data-enzf="dual"]').classList.contains('checked'),_sA=document.querySelector('[data-enzf="all"]').classList.contains('checked');
+      const filtEnz=this.enz.filter(e=>(e.count===1&&_sU)||(e.count===2&&_sD)||(e.count>=3&&_sA));
+      const labeled=filtEnz.filter(e=>e.count<=2);
+      const unlabeled=filtEnz.filter(e=>e.count>2);
+
+      // Unlabeled (3+ cuts): small tick marks on backbone (fixed size)
+      ctx.strokeStyle='rgba(79,140,255,0.4)';ctx.lineWidth=iz;
+      for(const enz of unlabeled)for(const st of enz.sites){
+        const x=px+st.pos*sc;
+        ctx.beginPath();ctx.moveTo(x,py-3*iz);ctx.lineTo(x,py+3*iz);ctx.stroke();
+      }
+
+      // Labeled (unique/dual): elbow lines with auto-height distribution
+      const enzPts=[];
+      for(const enz of labeled)for(const st of enz.sites){
+        const x=px+st.pos*sc;
+        enzPts.push({name:enz.name,seq:enz.seq,cutPos:enz.cutPos,x:x,y:py,pos:st.pos,rev:st.rev});
+      }
+      enzPts.sort((a,b)=>a.x-b.x);
+      this._enzDots=enzPts;
+      // Assign levels based on text width overlap detection
+      ctx.font=(15*iz)+'px system-ui,sans-serif';
+      for(const e of enzPts)e.textW=ctx.measureText(e.name).width+8*iz;
+      const lvlEnds=[]; // rightmost x extent at each level
+      for(const e of enzPts){
+        let lv=0,placed=false;
+        while(!placed){
+          if(lv>=lvlEnds.length){lvlEnds.push(-Infinity);e.level=lv;lvlEnds[lv]=e.x+e.textW/2;placed=true}
+          else if(e.x-e.textW/2>lvlEnds[lv]+4*iz){e.level=lv;lvlEnds[lv]=e.x+e.textW/2;placed=true}
+          else lv++;
+        }
+      }
+      // Draw with elbow lines at assigned heights
+      const levelH=18*iz;
+      const baseY=py-35*iz; // enzyme labels well above backbone
+      for(const e of enzPts){
+        const ly=baseY-e.level*levelH;
+        // Vertical line from backbone up to level
+        ctx.strokeStyle='rgba(79,140,255,0.3)';ctx.lineWidth=iz;
+        ctx.beginPath();ctx.moveTo(e.x,py-2*iz);ctx.lineTo(e.x,ly);ctx.stroke();
+        // Dot on backbone
+        ctx.fillStyle='rgba(79,140,255,0.7)';ctx.beginPath();ctx.arc(e.x,py,2.5*iz,0,Math.PI*2);ctx.fill();
+        // Horizontal label
+        ctx.font=(15*iz)+'px system-ui,sans-serif';ctx.textAlign='center';ctx.textBaseline='bottom';
+        ctx.fillStyle='rgba(79,140,255,0.9)';ctx.fillText(e.name,e.x,ly-2*iz);
+      }
+    }
+
+    // ── Backbone line ──
+    ctx.strokeStyle='#4a5068';ctx.lineWidth=2.5*iz;ctx.beginPath();ctx.moveTo(px,py);ctx.lineTo(px+rw,py);ctx.stroke();
+
+    // ── Tick marks on backbone ──
+    const step=len>5000?500:len>2000?200:100;
+    ctx.font=(12*iz)+'px system-ui,sans-serif';ctx.textAlign='center';ctx.fillStyle='#6a6f88';
+    for(let p=0;p<len;p+=step){
+      const x=px+p*sc;
+      ctx.beginPath();ctx.moveTo(x,py-3*iz);ctx.lineTo(x,py+3*iz);ctx.strokeStyle='#3a4050';ctx.lineWidth=iz;ctx.stroke();
+      if(p%(step*5)===0&&sc*step*5>20)ctx.fillText(p+'',x,py+6*iz);
+    }
+
+    // ── Sequence bases at high zoom ──
+    const bpScreenW=sc*this._zoom; // screen pixels per base
+    if(bpScreenW>7){
+      const seq=d.sequence,rs=revComp(seq);
+      const bc={'A':'#4f8cff','T':'#f0a030','C':'#2bcc8a','G':'#e05070','N':'#8b8fa8'};
+      // Only render visible bases (performance)
+      const vx0=(-this._panX)/this._zoom, vx1=(w-this._panX)/this._zoom;
+      const i0=Math.max(0,Math.floor((vx0-px)/sc)-1);
+      const i1=Math.min(len,Math.ceil((vx1-px)/sc)+1);
+      const fontSize=Math.min(sc*0.85,16*iz);
+      ctx.font='bold '+fontSize+'px Consolas,monospace';ctx.textAlign='center';ctx.textBaseline='middle';
+      for(let i=i0;i<i1;i++){
+        const x=px+i*sc+sc/2;
+        // 5' strand (above backbone)
+        ctx.fillStyle=bc[seq[i]]||'#8b8fa8';
+        ctx.fillText(seq[i],x,py-fontSize*0.8);
+        // 3' strand (below backbone)
+        const ri=len-1-i;
+        ctx.fillStyle=bc[rs[ri>=0?ri:0]]||'#8b8fa8';
+        ctx.fillText(rs[ri>=0?ri:0],x,py+fontSize*0.8);
+      }
+      // Position numbers every 10 bases
+      ctx.font=(12*iz)+'px system-ui,sans-serif';ctx.fillStyle='#6a6f88';ctx.textBaseline='bottom';
+      for(let i=Math.ceil(i0/10)*10;i<i1;i+=10){
+        const x=px+i*sc+sc/2;
+        ctx.fillText((i+1)+'',x,py-fontSize*1.5);
+      }
+    }
+
+    // ── Features BELOW backbone, stacked by track ──
+    const tMap=this._tracks?this._tracks.map:null;
+    this._linFeatRects=[];
+    for(const f of d.features){
+      if(f.type==='source'||f.start==null||f.end==null)continue;
+      const track=tMap?tMap.get(f)||0:0;
+      const x1=px+Math.max(0,f.start)*sc, x2=px+Math.min(len,f.end)*sc;
+      if(x2-x1<1)continue;
+      const fy=py+trackGap+track*(trackH+trackSpace);
+      const col=f.color||FC[f.type.toLowerCase()]||'#888';
+      const hl=f===this.hovered;
+
+      // Feature rectangle
+      ctx.fillStyle=col;
+      const fh=hl?trackH+2*iz:trackH;
+      ctx.fillRect(x1,fy,Math.max(x2-x1,2*iz),fh);
+
+      // Direction arrow indicator
+      const arrowFs=(9*iz)+'px sans-serif';
+      if(f.strand===-1){
+        ctx.fillStyle='rgba(0,0,0,0.4)';ctx.font=arrowFs;ctx.textAlign='left';ctx.textBaseline='middle';
+        ctx.fillText('◀',x1+2*iz,fy+fh/2);
+      }else{
+        ctx.fillStyle='rgba(0,0,0,0.4)';ctx.font=arrowFs;ctx.textAlign='right';ctx.textBaseline='middle';
+        ctx.fillText('▶',x2-2*iz,fy+fh/2);
+      }
+
+      // Feature label inside bar
+      const lbl=featLabel(f);
+      if(lbl){
+        ctx.font='bold '+(10*iz)+'px system-ui,sans-serif';
+        const tw=ctx.measureText(lbl).width;
+        if(x2-x1>=tw+6*iz){
+          ctx.fillStyle='rgba(0,0,0,0.6)';ctx.textAlign='center';ctx.textBaseline='middle';
+          ctx.fillText(lbl,(x1+x2)/2,fy+fh/2);
+        }else if(x2-x1>=20*iz){
+          // Truncated label with clip
+          ctx.fillStyle='rgba(0,0,0,0.6)';ctx.textAlign='left';ctx.textBaseline='middle';
+          ctx.save();ctx.beginPath();ctx.rect(x1,fy,x2-x1,fh);ctx.clip();
+          ctx.fillText(lbl,x1+3*iz,fy+fh/2);ctx.restore();
+        }
+      }
+
+      // Store rect for hit detection
+      this._linFeatRects.push({f,x:x1,y:fy,w:x2-x1,h:trackH});
+    }
+
+    // ── Hover tooltip (drawn in screen space) ──
+    if(this.hoverEnz){
+      ctx.save();ctx.setTransform(this.dpr,0,0,this.dpr,0,0);
+      const e=this.hoverEnz;
+      const lines=enzCutLines(e,e.pos);
+      const lh=18,pd=8,bw=280,bh=lines.length*lh+pd*2;
+      let tx=Math.min(this._mx+10,this.w-bw-10),ty=Math.max(10,this._my-bh-5);
+      ctx.fillStyle='rgba(16,18,30,0.95)';ctx.strokeStyle='#4f8cff';ctx.lineWidth=1;
+      ctx.beginPath();ctx.roundRect(tx,ty,bw,bh,8);ctx.fill();ctx.stroke();
+      ctx.fillStyle='#4f8cff';ctx.font='bold 13px system-ui,sans-serif';ctx.textAlign='left';ctx.textBaseline='top';
+      ctx.fillText(lines[0],tx+pd,ty+pd);
+      ctx.font='12px Consolas,monospace';ctx.fillStyle='#e0e2ed';
+      ctx.fillText(lines[1],tx+pd,ty+pd+lh);
+      ctx.fillText(lines[2],tx+pd,ty+pd+lh*2);
+      ctx.font='11px system-ui,sans-serif';ctx.fillStyle='#8b8fa8';
+      ctx.fillText(lines[3],tx+pd,ty+pd+lh*3);
+      ctx.restore();
+    }else if(this.hovered){
+      ctx.save();ctx.setTransform(this.dpr,0,0,this.dpr,0,0);
+      const f=this.hovered;
+      const lines=[featLabel(f),f.type+' '+(f.start+1)+'..'+f.end+(f.strand===-1?' (−)':' (+)'),(f.end-f.start)+' bp'];
+      if(f.gene)lines.push('gene: '+f.gene);if(f.product)lines.push(f.product);
+      const lh=16,pd=6,bw=240,bh=lines.length*lh+pd*2;
+      let tx=Math.min(this._mx+10,this.w-bw-10),ty=Math.max(10,this._my-bh-5);
+      ctx.fillStyle='rgba(16,18,30,0.95)';ctx.strokeStyle='#4f8cff';ctx.lineWidth=1;
+      ctx.beginPath();ctx.roundRect(tx,ty,bw,bh,6);ctx.fill();ctx.stroke();
+      ctx.fillStyle='#e0e2ed';ctx.font='bold 12px system-ui,sans-serif';ctx.textAlign='left';ctx.textBaseline='top';
+      ctx.fillText(lines[0],tx+pd,ty+pd);
+      ctx.font='11px system-ui,sans-serif';ctx.fillStyle='#8b8fa8';
+      for(let i=1;i<lines.length;i++)ctx.fillText(lines[i],tx+pd,ty+pd+i*lh);
+      ctx.restore();
+    }
+  }
+  _a(f){return -Math.PI/2+f*Math.PI*2}
+  _hit(){
+    this.hovered=null;this.hoverEnz=null;
+    if(!this.doc)return;
+    if(document.getElementById('mapMode').value!=='linear'){this._hitC();return}
+    // Linear mode: check enzyme dots first (priority)
+    const mx=this._wmx,my=this._wmy;
+    const hitR=150/(this._zoom*this._zoom); // fixed screen-size hit area
+    if(this._enzDots){
+      for(const e of this._enzDots){
+        const ddx=mx-e.x,ddy=my-e.y;
+        if(ddx*ddx+ddy*ddy<hitR){this.hoverEnz=e;return}
+      }
+    }
+    // Check feature rects
+    if(this._linFeatRects){
+      for(const r of this._linFeatRects){
+        if(mx>=r.x&&mx<=r.x+r.w&&my>=r.y&&my<=r.y+r.h){this.hovered=r.f;return}
+      }
+    }
+  }
+  _hitC(){
+    if(!this.doc)return;
+    const d=this.doc,len=d.sequence.length;
+    const mx=this._wmx,my=this._wmy;
+    // Check enzyme dots first (priority over features)
+    if(this._enzDots){
+      for(const e of this._enzDots){
+        const ddx=mx-e.x,ddy=my-e.y;
+        if(ddx*ddx+ddy*ddy<120){this.hoverEnz=e;return}
+      }
+    }
+    const cx=this.w/2,cy=this.h/2;
+    const trackW=12,trackGap=6,trackSpace=2;
+    const nTracks=this._tracks?this._tracks.count:1;
+    const outerNeeded=trackGap+nTracks*(trackW+trackSpace)+50;
+    const R=Math.max(40,Math.min(this.w/2,this.h/2)-outerNeeded);
+    if(R<40)return;
+    const dx=mx-cx,dy=my-cy,dist=Math.sqrt(dx*dx+dy*dy);
+    const innerBound=R+trackGap-4, outerBound=R+trackGap+nTracks*(trackW+trackSpace)+4;
+    if(dist<innerBound||dist>outerBound){this.hovered=null;return}
+    let a=Math.atan2(dy,dx),pa=(a+Math.PI/2)%(Math.PI*2);
+    if(pa<0)pa+=Math.PI*2;
+    const bp=Math.round(pa/(Math.PI*2)*len)%len;
+    const tMap=this._tracks?this._tracks.map:null;
+    for(const f of d.features){
+      if(f.type==='source')continue;
+      const track=tMap?tMap.get(f)||0:0;
+      const fR=R+trackGap+track*(trackW+trackSpace)+trackW/2;
+      if(Math.abs(dist-fR)>trackW/2+3)continue;
+      let s=f.start%len,e=f.end%len;
+      if(s<0)s+=len;if(e<1)e+=len;
+      if(e===s||e<s){if(bp>=s||bp<e){this.hovered=f;return}}
+      else{if(bp>=s&&bp<e){this.hovered=f;return}}
+    }
+    this.hovered=null;
+  }
+}
+
+// ═══════ Seq Canvas Viewer ═══════
+class SeqViewer{
+  constructor(cv){
+    this.cv=cv;this.ctx=cv.getContext('2d');this.doc=null;this.enz=[];
+    this.dpr=window.devicePixelRatio||1;
+    this._wrap=60;this._scale=1;
+    this._scrollX=0;this._scrollY=0;
+    this._rowH=20;this._charW=7.2;this._featH=9;this._baseW=7.2;
+    this._drag=!1;this._dragX=0;this._dragY=0;this._dragSX=0;this._dragSY=0;
+    this._totalW=0;this._totalH=0;
+    this._hovered=null;this._hoverPos=null;this._hoveredEnz=null;this._hoveredFeat=null;this._hoveredCodon=-1;
+    this._cursor=-1;this._selStart=-1;this._selEnd=-1;
+    this._editHistory=[];this._editFuture=[];
+    this._selDragging=false;this._cursorVisible=true;this._blinkTimer=null;
+    const self=this;
+    cv.tabIndex=0;cv.style.outline='none';
+    cv.addEventListener('focus',()=>{self._cursorVisible=true;self._startBlink()});
+    cv.addEventListener('blur',()=>{self._stopBlink();self._cursorVisible=false;self.render()});
+    cv.addEventListener('mousedown',e=>{cv.focus();const r=cv.getBoundingClientRect();const mx=e.clientX-r.left+self._scrollX,my=e.clientY-r.top+self._scrollY;const bp=self._posFromMouse(mx,my);if(bp>=0){if(e.shiftKey&&self._cursor>=0){self._selStart=Math.min(self._cursor,bp);self._selEnd=Math.max(self._cursor,bp)}else{self._cursor=bp;self._selStart=-1;self._selEnd=-1;self._selDragging=true}self._resetBlink();self.render()}else{self._drag=!0;self._dragX=e.clientX;self._dragY=e.clientY;self._dragSX=self._scrollX;self._dragSY=self._scrollY}});
+    window.addEventListener('mousemove',e=>{if(!self._drag)return;self._scrollX=Math.max(0,Math.min(self._totalW-self.cv.width/self.dpr,self._dragSX-(e.clientX-self._dragX)));self._scrollY=Math.max(0,Math.min(self._totalH-self.cv.height/self.dpr,self._dragSY-(e.clientY-self._dragY)));self.render()});
+    window.addEventListener('mouseup',()=>{self._drag=!1;self._selDragging=false});
+    cv.addEventListener('wheel',e=>{e.preventDefault();self._scrollY=Math.max(0,Math.min(self._totalH-self.cv.height/self.dpr,self._scrollY+e.deltaY));self._scrollX=Math.max(0,Math.min(self._totalW-self.cv.width/self.dpr,self._scrollX+e.deltaX));self.render()},{passive:!1});
+    cv.addEventListener('mousemove',e=>{if(self._drag)return;const r=cv.getBoundingClientRect();self._hit(e.clientX-r.left+self._scrollX,e.clientY-r.top+self._scrollY);self.render()});
+    cv.addEventListener('mousemove',e=>{if(!self._selDragging)return;const r=cv.getBoundingClientRect();const mx=e.clientX-r.left+self._scrollX,my=e.clientY-r.top+self._scrollY;const bp=self._posFromMouse(mx,my);if(bp>=0&&self._cursor>=0){self._selStart=Math.min(self._cursor,bp);self._selEnd=Math.max(self._cursor,bp);self.render()}});
+    cv.addEventListener('keydown',e=>{self._onKey(e)});
+    // Right-click context menu
+    const ctxMenu=document.getElementById('seqCtxMenu');
+    cv.addEventListener('contextmenu',e=>{
+      e.preventDefault();
+      const hasSel=self._selStart>=0&&self._selEnd>self._selStart;
+      const hf=self._hoveredFeat;
+      const hasPrimer=hf&&(hf.type==='primer_bind'||hf.type==='primer');
+      self._ctxPrimer=hasPrimer?hf:null;
+      document.getElementById('ctxCopy').classList.toggle('disabled',!hasSel);
+      document.getElementById('ctxCopyRC').classList.toggle('disabled',!hasSel);
+      document.getElementById('ctxDelete').classList.toggle('disabled',!hasSel);
+      // Primer-specific items
+      document.getElementById('ctxPrimerSep').style.display=hasPrimer?'':'none';
+      document.getElementById('ctxEditPrimer').style.display=hasPrimer?'':'none';
+      document.getElementById('ctxCopyPrimer').style.display=hasPrimer?'':'none';
+      document.getElementById('ctxDelPrimer').style.display=hasPrimer?'':'none';
+      ctxMenu.style.left=e.clientX+'px';ctxMenu.style.top=e.clientY+'px';ctxMenu.style.display='block';
+    });
+    document.addEventListener('click',()=>{ctxMenu.style.display='none'});
+    document.getElementById('ctxCopy').addEventListener('click',()=>{self._copySelection()});
+    document.getElementById('ctxCopyRC').addEventListener('click',()=>{self._copyRevComp()});
+    document.getElementById('ctxInsert').addEventListener('click',()=>{self._showInsertDialog('')});
+    document.getElementById('ctxDelete').addEventListener('click',()=>{
+      if(self._selStart>=0&&self._selEnd>self._selStart){
+        self._showDeleteConfirm(self._selEnd-self._selStart).then(ok=>{
+          if(!ok)return;
+          self._doDelete(self._selStart,self._selEnd);
+          self._cursor=self._selStart;self._selStart=-1;self._selEnd=-1;
+          self._afterEdit();
+        });
+      }
+    });
+    document.getElementById('ctxSelectAll').addEventListener('click',()=>{
+      if(!self.doc)return;self._selStart=0;self._selEnd=self.doc.sequence.length;self._cursor=self.doc.sequence.length;self.render();
+    });
+    cv.addEventListener('mouseleave',()=>{self._hovered=null;self._hoverPos=null;self._hoveredEnz=null;self._hoveredFeat=null;self._hoveredCodon=-1;self.render()});
+    new ResizeObserver(()=>{self._resize()}).observe(cv.parentElement);
+  }
+  load(doc,enz){this.doc=doc;this.enz=enz||[];this._scrollX=0;this._scrollY=0;this._cursor=-1;this._selStart=-1;this._selEnd=-1;this._editHistory=[];this._editFuture=[];this._resize()}
+  _resize(){const wrap=this.cv.parentElement;if(!wrap)return;const w=wrap.clientWidth,h=wrap.clientHeight;if(w<10||h<10)return;this.cv.style.width=w+'px';this.cv.style.height=h+'px';this.cv.width=w*this.dpr;this.cv.height=h*this.dpr;this._updateParams();this.render()}
+  _updateParams(){
+    this._baseW=8.5;this._charW=8.5;this._rowH=22;this._featH=11;
+    const d=this.doc;if(!d||!d.sequence)return;const len=d.sequence.length;
+    const marginL=55,marginR=65;
+    const canvasW=this.cv.width/this.dpr;
+    this._wrap=Math.max(10,Math.floor((canvasW-marginL-marginR)/this._charW));
+    const nRows=Math.ceil(len/this._wrap);
+    this._totalW=canvasW;
+    const orfRows=this._showORF()?(document.getElementById('frameS').value==='all'?6:1):0;
+    const linesPerRow=2+(this._showEnz()?1:0)+orfRows+(this._showFeat()?1:0);
+    this._totalH=nRows*(this._rowH*linesPerRow+4)+20;
+  }
+  _showORF(){return document.getElementById('showORF').checked}
+  _showFeat(){return document.getElementById('showFeatInSeq').checked}
+  _showEnz(){return document.getElementById('showEnzInSeq').checked}
+  render(){
+    const d=this.doc;if(!d||!d.sequence)return;this._updateParams();
+    const ctx=this.ctx,dpr=this.dpr;const cw=this.cv.width/dpr,ch=this.cv.height/dpr;
+    ctx.setTransform(1,0,0,1,0,0);ctx.scale(dpr,dpr);
+    ctx.fillStyle='#0e1018';ctx.fillRect(0,0,cw,ch);ctx.save();ctx.translate(-this._scrollX,-this._scrollY);
+    this._drawContent(ctx);ctx.restore();
+  }
+  _drawContent(ctx){
+    const d=this.doc,len=d.sequence.length,s=d.sequence.toUpperCase();
+    const showORF=this._showORF(),showFeat=this._showFeat(),showEnz=this._showEnz();
+    const cpr=this._wrap,cw=this._charW,rowH=this._rowH,marginL=55,fh=this._featH;
+    const frameVal=document.getElementById('frameS').value;
+    const off=frameVal==='all'?0:parseInt(frameVal,10),offset=Math.max(0,Math.abs(off)-1);
+    const fa=(showORF&&frameVal!=='all')?translate(s,off):null;
+    const fAt=[];if(showFeat){for(let i=0;i<len;i++)fAt[i]=[];for(const f of d.features){if(f.type==='source'||f.type==='primer_bind'||f.type==='primer'||f.start==null)continue;for(let p=Math.max(0,f.start);p<Math.min(len,f.end);p++)fAt[p].push(f)}}
+    // Enzyme positions
+    let enzAt=[];if(showEnz&&this.enz.length){
+      const _sU=document.querySelector('[data-enzf="unique"]').classList.contains('checked'),_sD=document.querySelector('[data-enzf="dual"]').classList.contains('checked'),_sA=document.querySelector('[data-enzf="all"]').classList.contains('checked');
+      const filtEnz=this.enz.filter(e=>(e.count===1&&_sU)||(e.count===2&&_sD)||(e.count>=3&&_sA));
+      for(let i=0;i<len;i++)enzAt[i]=[];
+      for(const enz of filtEnz)for(const st of enz.sites)if(st.pos>=0&&st.pos<len)enzAt[st.pos].push(enz);
+    }
+    const orfRows=showORF?(frameVal==='all'?6:1):0;
+    const linesPerRow=2+(showEnz?1:0)+orfRows+(showFeat?1:0);
+    const nRows=Math.ceil(len/cpr);
+    const bc={'A':'#4f8cff','T':'#f0a030','C':'#2bcc8a','G':'#e05070','N':'#8b8fa8'};
+    for(let ri=0;ri<nRows;ri++){
+      const start=ri*cpr,end=Math.min(len,start+cpr);const chunk=s.slice(start,end);
+      const yBase=ri*linesPerRow*rowH+10;
+      let curY=yBase;
+
+      // ── 1. Enzyme names ABOVE sequence (with extension lines) ──
+      if(showEnz&&enzAt.length){
+        const enzY=curY;
+        const enzLineEnd=curY+rowH; // lines extend to bottom of enzyme row (where seq starts)
+        let lastLabelX=-999;
+        for(let j=start;j<end;j++){
+          if(!enzAt[j]||!enzAt[j].length)continue;
+          const enz0=enzAt[j][0];
+          const cutBp=j+enz0.cutPos; // actual cut position
+          if(cutBp<start||cutBp>=end)continue;
+          const x=marginL+(cutBp-start)*cw;
+          // Extension line (dashed, from label area down to sequence)
+          ctx.strokeStyle='rgba(79,140,255,0.3)';ctx.lineWidth=1;
+          ctx.setLineDash([2,2]);
+          ctx.beginPath();ctx.moveTo(x,enzY+14);ctx.lineTo(x,enzLineEnd);ctx.stroke();
+          ctx.setLineDash([]);
+          // Dot at sequence level (cut position)
+          ctx.fillStyle='rgba(79,140,255,0.7)';ctx.beginPath();ctx.arc(x,enzLineEnd,2.5,0,Math.PI*2);ctx.fill();
+          // Enzyme name (avoid overlap)
+          if(x-lastLabelX>40){
+            ctx.font='11px system-ui,sans-serif';ctx.textAlign='center';ctx.textBaseline='top';
+            ctx.fillStyle='rgba(79,140,255,0.9)';
+            ctx.fillText(enz0.name,x,enzY);
+            lastLabelX=x;
+          }
+        }
+        curY+=rowH;
+      }
+
+      // ── 2. 5'→3' sequence ──
+      const seqY=curY;
+      const he=this._hoveredEnz;
+      const hf=this._hoveredFeat;
+      // Row position number at right end of line
+      ctx.fillStyle='#6a6f88';ctx.font='11px system-ui,sans-serif';ctx.textAlign='left';ctx.textBaseline='top';
+      ctx.fillText((start+1)+'-'+end,marginL+(end-start)*cw+6,seqY);
+      for(let j=0;j<chunk.length;j++){
+        const x=marginL+j*cw,bp=j+start;
+        if(this._selStart>=0&&this._selEnd>this._selStart&&bp>=this._selStart&&bp<this._selEnd){ctx.fillStyle='rgba(79,140,255,0.3)';ctx.fillRect(x,seqY,cw,rowH*2)}
+        if(this._hoveredCodon>=0){const cs=off>0?(offset+this._hoveredCodon*3):(len-3-offset-this._hoveredCodon*3);if(bp>=cs&&bp<cs+3){ctx.fillStyle='rgba(255,200,60,0.2)';ctx.fillRect(x,seqY,cw,rowH*2)}}
+        if(hf&&bp>=hf.start&&bp<hf.end){ctx.fillStyle=(hf.color||FC[hf.type.toLowerCase()]||'#2bcc8a')+'20';ctx.fillRect(x,seqY,cw,rowH*2)}
+        if(he&&bp>=he.pos&&bp<he.pos+he.seq.length){
+          ctx.fillStyle='rgba(79,140,255,0.22)';ctx.fillRect(x,seqY,cw,rowH*2);
+          ctx.fillStyle='rgba(79,140,255,0.5)';
+          if(bp===he.pos)ctx.fillRect(x,seqY,1,rowH*2);
+          if(bp===he.pos+he.seq.length-1)ctx.fillRect(x+cw,seqY,1,rowH*2);
+        }
+        if(this._hoverPos===bp){ctx.fillStyle='rgba(79,140,255,0.25)';ctx.fillRect(x,seqY,cw,rowH)}
+        ctx.fillStyle=bc[chunk[j]]||'#8b8fa8';ctx.font='bold 13px Consolas,monospace';ctx.textAlign='left';ctx.textBaseline='top';ctx.fillText(chunk[j],x,seqY);
+      }
+      if(this._cursor>=start&&this._cursor<=end&&this._cursorVisible){const curX=marginL+(this._cursor-start)*cw;ctx.fillStyle='#ff4060';ctx.fillRect(curX-1,seqY,2,rowH*2)}
+      if(he){
+        const topCut=he.pos+he.cutPos,botCut=he.pos+he.seq.length-he.cutPos;
+        const midY=seqY+rowH;
+        const topInRow=topCut>=start&&topCut<end,botInRow=botCut>=start&&botCut<end;
+        if(topInRow||botInRow){
+          ctx.strokeStyle='#ff4060';ctx.lineWidth=1.5;ctx.beginPath();
+          if(topInRow){const tx=marginL+(topCut-start)*cw;ctx.moveTo(tx,seqY);ctx.lineTo(tx,midY);if(botInRow){const bx=marginL+(botCut-start)*cw;ctx.lineTo(bx,midY);ctx.lineTo(bx,seqY+rowH*2)}}
+          else if(botInRow){const bx=marginL+(botCut-start)*cw;ctx.moveTo(bx,midY);ctx.lineTo(bx,seqY+rowH*2)}
+          ctx.stroke();
+          ctx.fillStyle='#ff4060';ctx.font='9px sans-serif';ctx.textAlign='center';
+          if(topInRow){ctx.textBaseline='bottom';ctx.fillText('↓',marginL+(topCut-start)*cw,seqY)}
+          if(botInRow){ctx.textBaseline='top';ctx.fillText('↑',marginL+(botCut-start)*cw,seqY+rowH*2)}
+        }
+      }
+      ctx.fillStyle='#8b8fa8';ctx.font='13px system-ui,sans-serif';ctx.textAlign='right';ctx.textBaseline='top';ctx.fillText("5'→",marginL-8,seqY);
+      curY+=rowH;
+
+      // ── 3. 3'←5' complement ──
+      const revY=curY;
+      for(let j=0;j<chunk.length;j++){const cb=RC[chunk[j]]||chunk[j];ctx.fillStyle=bc[cb]||'#8b8fa8';ctx.font='bold 13px Consolas,monospace';ctx.textAlign='left';ctx.textBaseline='top';ctx.fillText(cb,marginL+j*cw,revY)}
+      ctx.fillStyle='#8b8fa8';ctx.font='13px system-ui,sans-serif';ctx.textAlign='right';ctx.textBaseline='top';ctx.fillText("3'←",marginL-8,revY);
+      curY+=rowH;
+
+      // ── Primer arrows (forward above 5', reverse below 3') ──
+      const primers=d.features.filter(f=>(f.type==='primer_bind'||f.type==='primer')&&f.start!=null);
+      if(primers.length){
+        const pH=13; // primer bar height
+        // Forward primers → above 5' strand (per-base aligned, name above)
+        for(const p of primers){
+          if(p.strand===-1)continue;
+          const ps=Math.max(p.start,start),pe=Math.min(p.end,end);
+          if(ps>=pe)continue;
+          const px1=marginL+(ps-start)*cw,px2=marginL+(pe-start)*cw;
+          const py=seqY-pH-2;
+          // Bordered box
+          ctx.strokeStyle='#f0a030';ctx.lineWidth=1;ctx.fillStyle='rgba(240,160,48,0.06)';
+          ctx.beginPath();ctx.rect(px1,py,px2-px1,pH);ctx.fill();ctx.stroke();
+          // Arrow head →
+          ctx.fillStyle='#f0a030';ctx.beginPath();ctx.moveTo(px2,py);ctx.lineTo(px2,py+pH);ctx.lineTo(px2+5,py+pH/2);ctx.closePath();ctx.fill();
+          // Primer bases aligned with main sequence
+          ctx.font='bold 11px Consolas,monospace';ctx.fillStyle='#f0a030';ctx.textAlign='left';ctx.textBaseline='middle';
+          for(let j=ps;j<pe;j++){ctx.fillText(s[j],marginL+(j-start)*cw,py+pH/2)}
+          // Primer name above box
+          const pn=p.label||p.gene||'';
+          if(pn){ctx.font='8px system-ui,sans-serif';ctx.fillStyle='#f0a030';ctx.textAlign='left';ctx.textBaseline='bottom';ctx.fillText(pn,px1,py-1)}
+        }
+        // Reverse primers → below 3' strand (per-base aligned, name below)
+        for(const p of primers){
+          if(p.strand!==-1)continue;
+          const ps=Math.max(p.start,start),pe=Math.min(p.end,end);
+          if(ps>=pe)continue;
+          const px1=marginL+(ps-start)*cw,px2=marginL+(pe-start)*cw;
+          const py=revY+rowH+2;
+          // Bordered box
+          ctx.strokeStyle='#60c0a0';ctx.lineWidth=1;ctx.fillStyle='rgba(96,192,160,0.06)';
+          ctx.beginPath();ctx.rect(px1,py,px2-px1,pH);ctx.fill();ctx.stroke();
+          // Arrow head ←
+          ctx.fillStyle='#60c0a0';ctx.beginPath();ctx.moveTo(px1,py);ctx.lineTo(px1,py+pH);ctx.lineTo(px1-5,py+pH/2);ctx.closePath();ctx.fill();
+          // Primer bases aligned (complement at each position = annealed view)
+          ctx.font='bold 11px Consolas,monospace';ctx.fillStyle='#60c0a0';ctx.textAlign='left';ctx.textBaseline='middle';
+          for(let j=ps;j<pe;j++){ctx.fillText(RC[s[j]]||s[j],marginL+(j-start)*cw,py+pH/2)}
+          // Primer name below box
+          const pn=p.label||p.gene||'';
+          if(pn){ctx.font='8px system-ui,sans-serif';ctx.fillStyle='#60c0a0';ctx.textAlign='left';ctx.textBaseline='top';ctx.fillText(pn,px1,py+pH+1)}
+        }
+      }
+
+      // ── 4. Feature bar BELOW sequence (before ORF) ──
+      if(showFeat){
+        const featY=curY;
+        const hfeat=this._hoveredFeat;
+        for(let j=start;j<end;j++){const x=marginL+(j-start)*cw;if(fAt[j].length){const ff=fAt[j][0];const isHl=hfeat&&ff===hfeat;const col=isHl?(ff.color||FC[ff.type.toLowerCase()]||'#2bcc8a')+'88':(ff.color?(ff.color+'44'):Tint[ff.type.toLowerCase()]||'#8b8fa844');ctx.fillStyle=col;ctx.fillRect(x,featY,cw+1,fh)}}
+        ctx.font='bold '+(Math.min(fh-1,10))+'px system-ui,sans-serif';ctx.textBaseline='middle';
+        const drawnF=new Set();
+        for(const f of d.features){
+          if(f.type==='source'||f.start==null||drawnF.has(f))continue;
+          const fs=Math.max(f.start,start),fe=Math.min(f.end,end);
+          if(fs>=fe)continue;drawnF.add(f);
+          const lbl=f.label||f.gene||f.type;if(!lbl)continue;
+          const lx=marginL+(fs-start)*cw,lw=(fe-fs)*cw;
+          const tw=ctx.measureText(lbl).width;
+          if(lw>=tw+4){ctx.fillStyle=f.color||FC[f.type.toLowerCase()]||'#c0c4d8';ctx.textAlign='center';ctx.fillText(lbl,lx+lw/2,featY+fh/2)}
+          else if(lw>=20){ctx.save();ctx.beginPath();ctx.rect(lx,featY,lw,fh);ctx.clip();ctx.fillStyle=f.color||FC[f.type.toLowerCase()]||'#c0c4d8';ctx.textAlign='left';ctx.fillText(lbl,lx+2,featY+fh/2);ctx.restore()}
+        }
+        curY+=fh+2;
+      }
+
+      // ── 5. ORF BELOW feature (direction-aware positioning) ──
+      if(showORF){
+        const aaMode=document.getElementById('aaMode').value;
+        const minAA=parseInt(document.getElementById('minORF').value)||30;
+        const hcod=this._hoveredCodon;
+        const frames=frameVal==='all'?[1,2,3,-1,-2,-3]:[off];
+        for(const fr of frames){
+          const orfY=curY;
+          const faTr=translate(s,fr);
+          const frOffset=Math.abs(fr)-1;
+          const isRev=fr<0;
+          const validORF=findValidORFs(faTr,minAA);
+          const orfDirColor=isRev?'rgba(60,200,120,0.13)':'rgba(255,210,60,0.13)';
+          for(let ai=0;ai<faTr.length;ai++){
+            if(!validORF.has(ai))continue;
+            const aa=faTr[ai];
+            const fwdPos=isRev?(len-3-frOffset-ai*3):(frOffset+ai*3);
+            if(fwdPos<start||fwdPos>=end||fwdPos<0)continue;
+            const x=marginL+(fwdPos-start)*cw;
+            ctx.fillStyle=orfDirColor;ctx.fillRect(x,orfY,cw*3+1,rowH);
+            if(frames.length===1&&ai===hcod){ctx.fillStyle='rgba(255,200,60,0.3)';ctx.fillRect(x,orfY,cw*3,rowH)}
+            ctx.fillStyle=aa==='M'?'#2bcc8a':aa==='*'?'#e05070':'#e0e2ed';
+            if(aaMode==='3'){
+              const codon=isRev?revComp(s.substr(fwdPos,3)):s.substr(fwdPos,3);
+              ctx.font='9px Consolas,monospace';ctx.textAlign='center';ctx.textBaseline='top';
+              ctx.fillText(CODON3[codon]||'???',x+cw*1.5,orfY);
+            }else{
+              ctx.font='bold 10px Consolas,monospace';ctx.textAlign='center';ctx.textBaseline='top';
+              ctx.fillText(aa,x+cw*1.5,orfY);
+            }
+          }
+          // Frame label
+          ctx.fillStyle='#8b8fa8';ctx.font='11px system-ui,sans-serif';ctx.textAlign='right';ctx.textBaseline='top';
+          ctx.fillText((fr>0?'+':'')+fr,marginL-8,orfY);
+          curY+=rowH;
+        }
+      }
+      // 10-base grid
+
+    }
+    // Enzyme cut pattern tooltip (priority over base tooltip)
+    if(this._hoveredEnz){
+      const he=this._hoveredEnz;
+      const lines=enzCutLines(he,he.pos);
+      const lh=18,pd=8,bw=260,bh=lines.length*lh+pd*2;
+      const ri=Math.floor(he.pos/cpr);
+      const tx=Math.min(marginL+(he.pos%cpr)*cw+20-this._scrollX,this.cv.width/this.dpr-bw-10);
+      const ty=Math.max(10,ri*linesPerRow*rowH+10-this._scrollY-bh-10);
+      ctx.fillStyle='rgba(16,18,30,0.95)';ctx.strokeStyle='#4f8cff';ctx.lineWidth=1;
+      ctx.beginPath();ctx.roundRect(tx,ty,bw,bh,8);ctx.fill();ctx.stroke();
+      ctx.fillStyle='#4f8cff';ctx.font='bold 13px system-ui,sans-serif';ctx.textAlign='left';ctx.textBaseline='top';
+      ctx.fillText(lines[0],tx+pd,ty+pd);
+      ctx.font='12px Consolas,monospace';ctx.fillStyle='#e0e2ed';
+      ctx.fillText(lines[1],tx+pd,ty+pd+lh);
+      ctx.fillText(lines[2],tx+pd,ty+pd+lh*2);
+      ctx.font='11px system-ui,sans-serif';ctx.fillStyle='#8b8fa8';
+      ctx.fillText(lines[3],tx+pd,ty+pd+lh*3);
+    }
+    // Feature tooltip
+    else if(this._hoveredFeat){
+      const hf=this._hoveredFeat;
+      const lines=[hf.label||hf.gene||hf.type,hf.type+' '+(hf.start+1)+'..'+hf.end+(hf.strand===-1?' (−)':' (+)'),(hf.end-hf.start)+' bp'];
+      if(hf.product)lines.push(hf.product);
+      const lh=16,pd=6,bw=220,bh=lines.length*lh+pd*2;
+      const ri=Math.floor(hf.start/cpr);
+      const fx=marginL+((hf.start%cpr))*cw-this._scrollX;
+      const tx=Math.min(this.cv.width/this.dpr-bw-10,Math.max(10,fx)),ty=Math.max(10,ri*linesPerRow*rowH+10-this._scrollY-bh-5);
+      const fcol=hf.color||FC[hf.type.toLowerCase()]||'#2bcc8a';
+      ctx.fillStyle='rgba(16,18,30,0.95)';ctx.strokeStyle=fcol;ctx.lineWidth=1;
+      ctx.beginPath();ctx.roundRect(tx,ty,bw,bh,6);ctx.fill();ctx.stroke();
+      ctx.fillStyle=fcol;ctx.font='bold 12px system-ui,sans-serif';ctx.textAlign='left';ctx.textBaseline='top';
+      ctx.fillText(lines[0],tx+pd,ty+pd);
+      ctx.font='11px system-ui,sans-serif';ctx.fillStyle='#8b8fa8';
+      for(let i=1;i<lines.length;i++)ctx.fillText(lines[i],tx+pd,ty+pd+i*lh);
+    }
+    // Base tooltip
+    else if(this._hoverPos!==null&&this._hoverPos>=0&&this._hoverPos<len){
+      const x=marginL+(this._hoverPos%cpr)*cw-this._scrollX+6,ri=Math.floor(this._hoverPos/cpr),y=ri*linesPerRow*rowH+10-this._scrollY+6;
+      const tip=s[this._hoverPos]+'  pos '+(this._hoverPos+1);ctx.font='12px system-ui,sans-serif';const tw=ctx.measureText(tip).width;
+      const tx=Math.min(this.cv.width/this.dpr-tw-20,Math.max(20,x)),ty=Math.max(4,y-22);
+      ctx.fillStyle='rgba(16,18,30,0.92)';ctx.beginPath();ctx.roundRect(tx,ty,tw+16,22,4);ctx.fill();
+      ctx.fillStyle='#e0e2ed';ctx.textAlign='left';ctx.textBaseline='middle';ctx.fillText(tip,tx+8,ty+12);
+    }
+  }
+  _hit(mx,my){
+    this._hoverPos=null;this._hovered=null;this._hoveredEnz=null;this._hoveredFeat=null;this._hoveredCodon=-1;
+    const d=this.doc;if(!d||!d.sequence)return;
+    const len=d.sequence.length,cpr=this._wrap,cw=this._charW,rowH=this._rowH,fh=this._featH;
+    const showORF=this._showORF(),showFeat=this._showFeat(),showEnz=this._showEnz();
+    const frameVal=document.getElementById('frameS').value;
+    const orfRows=showORF?(frameVal==='all'?6:1):0;
+    const lp=2+(showEnz?1:0)+orfRows+(showFeat?1:0);
+    const off=parseInt(document.getElementById('frameS').value,10),orfOffset=off>0?off-1:0;
+    for(let ri=0;ri<Math.ceil(len/cpr);ri++){
+      const start=ri*cpr,yBase=ri*lp*rowH+10;
+      const enzY=yBase;
+      const seqY=yBase+(showEnz?rowH:0);
+      const revY=seqY+rowH;
+      const featY=revY+rowH;
+      const orfY=featY+(showFeat?fh+2:0);
+      // Check enzyme row area
+      if(showEnz&&my>=enzY&&my<enzY+rowH){
+        const col=Math.round((mx-55)/cw);
+        if(col>=0&&col<cpr&&start+col<len){this._checkEnzAtPos(start+col);if(this._hoveredEnz)return}
+      }
+      // Check primer areas (above 5' and below 3')
+      const pH=13;
+      if(my>=seqY-pH-2&&my<seqY||my>=revY+rowH+2&&my<revY+rowH+2+pH){
+        const col=Math.round((mx-55)/cw);
+        if(col>=0&&col<cpr&&start+col<len){
+          const bp=start+col;
+          for(const f of d.features){
+            if((f.type!=='primer_bind'&&f.type!=='primer')||f.start==null)continue;
+            if(bp>=f.start&&bp<f.end){
+              // Check direction matches area: forward above, reverse below
+              if(f.strand!==-1&&my<seqY){this._hoveredFeat=f;return}
+              if(f.strand===-1&&my>seqY+rowH*2){this._hoveredFeat=f;return}
+            }
+          }
+        }
+      }
+      // Check sequence area
+      if(my>=seqY&&my<seqY+rowH*2){
+        const col=Math.round((mx-55)/cw);
+        if(col>=0&&col<cpr&&start+col<len){this._hoverPos=start+col;this._checkEnzAtPos(start+col);return}
+      }
+      // Check feature bar area
+      if(showFeat&&my>=featY&&my<featY+fh){
+        const col=Math.round((mx-55)/cw);
+        if(col>=0&&col<cpr&&start+col<len){
+          const bp=start+col;
+          for(const f of d.features){
+            if(f.type==='source'||f.start==null)continue;
+            if(bp>=f.start&&bp<f.end){this._hoveredFeat=f;return}
+          }
+        }
+      }
+      // Check ORF row area
+      if(showORF&&my>=orfY&&my<orfY+rowH){
+        const col=Math.round((mx-55)/cw);
+        if(col>=0&&col<cpr){
+          const bp=start+col;
+          if(bp>=orfOffset){this._hoveredCodon=Math.floor((bp-orfOffset)/3);return}
+        }
+      }
+    }
+  }
+  _checkEnzAtPos(pos){
+    // Find enzyme whose recognition site covers this position
+    for(const enz of this.enz){
+      for(const st of enz.sites){
+        if(pos>=st.pos&&pos<st.pos+enz.seq.length){
+          this._hoveredEnz={name:enz.name,seq:enz.seq,cutPos:enz.cutPos,pos:st.pos,rev:st.rev};return;
+        }
+      }
+    }
+  }
+  _startBlink(){this._stopBlink();const self=this;this._blinkTimer=setInterval(()=>{self._cursorVisible=!self._cursorVisible;self.render()},530)}
+  _stopBlink(){if(this._blinkTimer){clearInterval(this._blinkTimer);this._blinkTimer=null}}
+  _resetBlink(){this._cursorVisible=true;this._startBlink()}
+  _posFromMouse(mx,my){
+    const d=this.doc;if(!d||!d.sequence)return -1;
+    const len=d.sequence.length,cpr=this._wrap,cw=this._charW,rowH=this._rowH;
+    const showEnz=this._showEnz(),showFeat=this._showFeat(),showORF=this._showORF();
+    const frameVal=document.getElementById('frameS').value;
+    const orfRows=showORF?(frameVal==='all'?6:1):0;
+    const lp=2+(showEnz?1:0)+orfRows+(showFeat?1:0);
+    for(let ri=0;ri<Math.ceil(len/cpr);ri++){
+      const start=ri*cpr,yBase=ri*lp*rowH+10;
+      const seqY=yBase+(showEnz?rowH:0);
+      if(my>=seqY&&my<seqY+rowH*2){
+        const col=Math.round((mx-55)/cw);
+        if(col>=0&&col<=cpr&&start+col<=len)return start+col;
+      }
+    }
+    return -1;
+  }
+  _onKey(e){
+    if(!this.doc)return;
+    const s=this.doc.sequence;
+    if((e.ctrlKey||e.metaKey)&&e.key==='z'){if(e.shiftKey){if(this._editFuture.length){e.preventDefault();this._redo()}}else{if(this._editHistory.length){e.preventDefault();this._undo()}}return}
+    if((e.ctrlKey||e.metaKey)&&e.key==='y'){if(this._editFuture.length){e.preventDefault();this._redo()}return}
+    if((e.ctrlKey||e.metaKey)&&e.key==='c'){e.preventDefault();if(e.shiftKey)this._copyRevComp();else this._copySelection();return}
+    if((e.ctrlKey||e.metaKey)&&e.key==='C'){e.preventDefault();this._copyRevComp();return}
+    if((e.ctrlKey||e.metaKey)&&e.key==='v'){e.preventDefault();this._paste();return}
+    if((e.ctrlKey||e.metaKey)&&e.key==='a'){e.preventDefault();this._selStart=0;this._selEnd=s.length;this._cursor=s.length;this.render();return}
+    if(e.key==='Delete'||e.key==='Backspace'){
+      e.preventDefault();
+      if(this._selStart>=0&&this._selEnd>this._selStart){
+        // Selection delete → confirm dialog
+        const count=this._selEnd-this._selStart;
+        this._showDeleteConfirm(count).then(ok=>{
+          if(!ok)return;
+          this._doDelete(this._selStart,this._selEnd);
+          this._cursor=this._selStart;this._selStart=-1;this._selEnd=-1;
+          this._afterEdit();
+        });
+      }else if(this._cursor>=0){
+        // Single char delete → direct (no dialog)
+        if(e.key==='Backspace'&&this._cursor>0){this._doDelete(this._cursor-1,this._cursor);this._cursor--;this._afterEdit()}
+        else if(e.key==='Delete'&&this._cursor<s.length){this._doDelete(this._cursor,this._cursor+1);this._afterEdit()}
+      }
+      return;
+    }
+    const base=e.key.toUpperCase();
+    if('ATCGN'.includes(base)&&base.length===1&&!e.ctrlKey&&!e.metaKey){
+      e.preventDefault();
+      // Show insert dialog with first character pre-filled
+      this._showInsertDialog(base);
+      return;
+    }
+    if(e.key==='ArrowLeft'&&this._cursor>0){e.preventDefault();this._cursor--;this._selStart=-1;this._selEnd=-1;this._resetBlink();this.render()}
+    if(e.key==='ArrowRight'&&this._cursor<s.length){e.preventDefault();this._cursor++;this._selStart=-1;this._selEnd=-1;this._resetBlink();this.render()}
+  }
+  _doInsert(pos,bases){
+    this._editHistory.push({type:'insert',pos,bases});this._editFuture=[];
+    this.doc.sequence=this.doc.sequence.slice(0,pos)+bases+this.doc.sequence.slice(pos);
+    this._adjustFeatures(pos,bases.length);
+  }
+  _doDelete(start,end){
+    const removed=this.doc.sequence.slice(start,end);
+    this._editHistory.push({type:'delete',pos:start,bases:removed});this._editFuture=[];
+    this.doc.sequence=this.doc.sequence.slice(0,start)+this.doc.sequence.slice(end);
+    this._adjustFeatures(start,-(end-start));
+  }
+  _adjustFeatures(pos,delta){
+    for(const f of this.doc.features){
+      if(f.start==null)continue;
+      if(delta>0){
+        if(f.start>=pos)f.start+=delta;
+        if(f.end>pos)f.end+=delta;
+      }else{
+        const delEnd=pos-delta;
+        if(f.start>=delEnd){f.start+=delta;f.end+=delta}
+        else if(f.start>=pos&&f.end<=delEnd){f.start=pos;f.end=pos}
+        else{if(f.start>=pos)f.start=pos;if(f.end>pos)f.end=Math.max(pos,f.end+delta)}
+      }
+    }
+  }
+  _afterEdit(){
+    this.enz=findCutSites(this.doc.sequence);
+    this._resetBlink();this._updateParams();this.render();
+    const len=this.doc.sequence.length;
+    const gc=(this.doc.sequence.match(/[GC]/gi)||[]).length/len*100;
+    document.getElementById('bpInfo').textContent='长度：'+len.toLocaleString()+' bp';
+    document.getElementById('gcInfo').textContent='GC%：'+gc.toFixed(1)+'%';
+    if(window._markDirty)window._markDirty();
+  }
+  _undo(){
+    if(!this._editHistory.length)return;
+    const op=this._editHistory.pop();this._editFuture.push(op);
+    if(op.type==='insert'){
+      this.doc.sequence=this.doc.sequence.slice(0,op.pos)+this.doc.sequence.slice(op.pos+op.bases.length);
+      this._adjustFeatures(op.pos,-op.bases.length);this._cursor=op.pos;
+    }else{
+      this.doc.sequence=this.doc.sequence.slice(0,op.pos)+op.bases+this.doc.sequence.slice(op.pos);
+      this._adjustFeatures(op.pos,op.bases.length);this._cursor=op.pos+op.bases.length;
+    }
+    this._selStart=-1;this._selEnd=-1;this._afterEdit();
+  }
+  _redo(){
+    if(!this._editFuture.length)return;
+    const op=this._editFuture.pop();this._editHistory.push(op);
+    if(op.type==='insert'){
+      this.doc.sequence=this.doc.sequence.slice(0,op.pos)+op.bases+this.doc.sequence.slice(op.pos);
+      this._adjustFeatures(op.pos,op.bases.length);this._cursor=op.pos+op.bases.length;
+    }else{
+      this.doc.sequence=this.doc.sequence.slice(0,op.pos)+this.doc.sequence.slice(op.pos+op.bases.length);
+      this._adjustFeatures(op.pos,-op.bases.length);this._cursor=op.pos;
+    }
+    this._selStart=-1;this._selEnd=-1;this._afterEdit();
+  }
+  _copySelection(){
+    if(this._selStart<0||this._selEnd<=this._selStart)return;
+    const text=this.doc.sequence.slice(this._selStart,this._selEnd);
+    navigator.clipboard.writeText(text).catch(()=>{});
+  }
+  _copyRevComp(){
+    if(this._selStart<0||this._selEnd<=this._selStart)return;
+    const text=revComp(this.doc.sequence.slice(this._selStart,this._selEnd));
+    navigator.clipboard.writeText(text).catch(()=>{});
+  }
+  async _paste(){
+    try{
+      let text=await navigator.clipboard.readText();
+      text=text.toUpperCase().replace(/[^ATCGN]/g,'');
+      if(!text)return;
+      this._showInsertDialog(text);
+    }catch(e){}
+  }
+  // ── Modal dialogs for safe editing ──
+  _showModal(title,bodyHTML,buttons){
+    const m=document.getElementById('editModal');
+    document.getElementById('modalTitle').textContent=title;
+    document.getElementById('modalBody').innerHTML=bodyHTML;
+    const okBtn=document.getElementById('modalOK');
+    const cancelBtn=document.getElementById('modalCancel');
+    // Reset button style
+    okBtn.className='btn-ok';okBtn.textContent='确认';
+    if(buttons&&buttons.okClass)okBtn.className=buttons.okClass;
+    if(buttons&&buttons.okText)okBtn.textContent=buttons.okText;
+    m.style.display='flex';
+    return new Promise(resolve=>{
+      const close=(val)=>{m.style.display='none';okBtn.onclick=null;cancelBtn.onclick=null;resolve(val)};
+      okBtn.onclick=()=>close(true);
+      cancelBtn.onclick=()=>close(false);
+    });
+  }
+  async _showDeleteConfirm(count){
+    const ok=await this._showModal(
+      '确认删除',
+      '<div class="warn">⚠ 将删除 '+count+' 个碱基，此操作可撤销 (Ctrl+Z)</div>',
+      {okClass:'btn-danger',okText:'删除'}
+    );
+    return ok;
+  }
+  async _showInsertDialog(prefill){
+    const pos=this._cursor>=0?this._cursor:0;
+    const prom=this._showModal(
+      '插入序列 (位置 '+(pos+1)+')',
+      '<textarea id="insertSeqInput" placeholder="输入 A/T/C/G/N 序列…" spellcheck="false">'+(prefill||'')+'</textarea><div style="margin-top:6px;color:#6b7088;font-size:11px">仅接受 A、T、C、G、N 字符，其他字符自动过滤</div>',
+      {okText:'插入'}
+    );
+    const ta=document.getElementById('insertSeqInput');
+    if(ta){ta.focus();ta.setSelectionRange(ta.value.length,ta.value.length)}
+    const ok=await prom;
+    if(!ok)return;
+    let text=(document.getElementById('insertSeqInput').value||'').toUpperCase().replace(/[^ATCGN]/g,'');
+    if(!text)return;
+    let p=this._cursor>=0?this._cursor:0;
+    if(this._selStart>=0&&this._selEnd>this._selStart){
+      this._doDelete(this._selStart,this._selEnd);
+      p=this._selStart;this._selStart=-1;this._selEnd=-1;
+    }
+    this._doInsert(p,text);
+    this._cursor=p+text.length;
+    this._afterEdit();
+  }
+  setZoom(val){this._scale=0.2+(val+100)/200*(8-0.2);this._updateParams();this.render()}
+}
+
+// ═══════ Serializer ═══════
+// → future module: src/parser/serialize.js
+function serializeGB(doc){
+  let g='LOCUS       '+(doc.locus||'unnamed').padEnd(16)+' '
+    +doc.sequence.length+' bp    DNA     '
+    +(doc.circular?'circular':'linear')+' SYN\n';
+  g+='DEFINITION  '+(doc.definition||'')+'.\n';
+  g+='ACCESSION   '+(doc.accession||'unknown')+'\n';
+  g+='FEATURES             Location/Qualifiers\n';
+  for(const f of doc.features){
+    if(f.type==='source')continue;
+    const loc=(f.strand===-1?'complement(':'')+(f.start+1)+'..'+f.end+(f.strand===-1?')':'');
+    g+='     '+f.type.padEnd(16)+loc+'\n';
+    if(f.label)g+='                     /label="'+f.label+'"\n';
+    if(f.gene)g+='                     /gene="'+f.gene+'"\n';
+    if(f.product)g+='                     /product="'+f.product+'"\n';
+  }
+  g+='ORIGIN\n';
+  for(let i=0;i<doc.sequence.length;i+=60){
+    const ch=doc.sequence.slice(i,i+60).toLowerCase();
+    let l=String(i+1).padStart(9,' ');
+    for(let j=0;j<ch.length;j+=10)l+=' '+ch.slice(j,j+10);
+    g+=l+'\n';
+  }
+  g+='//\n';
+  return g;
+}
+function serializeFASTA(doc){
+  let f='>'+( doc.locus||doc.definition||'unnamed');
+  if(doc.sequence.length)f+=' '+doc.sequence.length+' bp';
+  if(doc.circular)f+=' circular';
+  f+='\n';
+  for(let i=0;i<doc.sequence.length;i+=60)f+=doc.sequence.slice(i,i+60)+'\n';
+  return f;
+}
+function serializeTxt(doc){return doc.sequence+'\n'}
+function serializeDNA(doc){
+  // SnapGene .dna binary format writer (compatible with SnapGene/Benchling/ApE)
+  const enc=new TextEncoder();
+  const primers=doc.features.filter(f=>(f.type==='primer_bind'||f.type==='primer')&&f.start!=null);
+  const features=doc.features.filter(f=>f.type!=='source'&&f.type!=='primer_bind'&&f.type!=='primer'&&f.start!=null);
+  // Build features XML (packet 0x0A) — non-primer features only
+  let featXml='<Features>\n';
+  for(const f of features){
+    const dir=f.strand===-1?'2':'1';
+    const name=(f.label||f.gene||'').replace(/[<>&"]/g,'');
+    featXml+='<Feature type="'+f.type+'" name="'+name+'" directionality="'+dir+'">\n';
+    featXml+='  <Segment range="'+(f.start+1)+'-'+f.end+'"'+(f.color?' color="'+f.color+'"':'')+'/>\n';
+    if(f.label)featXml+='  <Q name="label"><V text="'+f.label.replace(/[<>&"]/g,'')+'"/></Q>\n';
+    if(f.gene)featXml+='  <Q name="gene"><V text="'+f.gene.replace(/[<>&"]/g,'')+'"/></Q>\n';
+    if(f.product)featXml+='  <Q name="product"><V text="'+f.product.replace(/[<>&"]/g,'')+'"/></Q>\n';
+    featXml+='</Feature>\n';
+  }
+  featXml+='</Features>';
+  // Build primers XML (packet 0x05) — primers in separate packet
+  let primerXml='<Primers>\n';
+  for(const p of primers){
+    const name=(p.label||p.gene||'Primer').replace(/[<>&"]/g,'');
+    const seq=p.strand===-1?revComp(doc.sequence.slice(p.start,p.end)):doc.sequence.slice(p.start,p.end);
+    primerXml+='<Primer name="'+name+'" sequence="'+seq+'" direction="'+(p.strand===-1?'1':'0')+'">\n';
+    primerXml+='  <BindingSite location="'+(p.start+1)+'-'+p.end+'" boundStrand="'+(p.strand===-1?'1':'0')+'"/>\n';
+    primerXml+='</Primer>\n';
+  }
+  primerXml+='</Primers>';
+  // Build notes XML (packet 0x06)
+  const notesXml='<Notes><CustomMapLabel>'+(doc.locus||'unnamed').replace(/[<>&]/g,'')+'</CustomMapLabel></Notes>';
+  // Encode all to bytes
+  const seqBytes=enc.encode(doc.sequence);
+  const featBytes=enc.encode(featXml);
+  const primerBytes=enc.encode(primerXml);
+  const notesBytes=enc.encode(notesXml);
+  // Header: fixed 14 bytes "SnapGene" + version
+  const hdrBytes=new Uint8Array([83,110,97,112,71,101,110,101,0,1,0,1,0,0]);// "SnapGene\0\1\0\1\0\0"
+  // Calculate total size
+  let totalSize=1+4+hdrBytes.length + 1+4+1+seqBytes.length + 1+4+notesBytes.length;
+  if(features.length)totalSize+=1+4+featBytes.length;
+  if(primers.length)totalSize+=1+4+primerBytes.length;
+  const buf=new ArrayBuffer(totalSize);
+  const dv=new DataView(buf);
+  const u8=new Uint8Array(buf);
+  let off=0;
+  // Header packet: type 0x09
+  dv.setUint8(off++,0x09);
+  dv.setUint32(off,hdrBytes.length,false);off+=4;
+  u8.set(hdrBytes,off);off+=hdrBytes.length;
+  // Sequence packet: type 0x00
+  dv.setUint8(off++,0x00);
+  dv.setUint32(off,1+seqBytes.length,false);off+=4;
+  dv.setUint8(off++,doc.circular?1:0);
+  u8.set(seqBytes,off);off+=seqBytes.length;
+  // Notes packet: type 0x06
+  dv.setUint8(off++,0x06);
+  dv.setUint32(off,notesBytes.length,false);off+=4;
+  u8.set(notesBytes,off);off+=notesBytes.length;
+  // Features packet: type 0x0A (only if features exist)
+  if(features.length){
+    dv.setUint8(off++,0x0A);
+    dv.setUint32(off,featBytes.length,false);off+=4;
+    u8.set(featBytes,off);off+=featBytes.length;
+  }
+  // Primers packet: type 0x05 (only if primers exist)
+  if(primers.length){
+    dv.setUint8(off++,0x05);
+    dv.setUint32(off,primerBytes.length,false);off+=4;
+    u8.set(primerBytes,off);off+=primerBytes.length;
+  }
+  return buf;
+}
+
+// ═══════ Bridge (I/O Abstraction) ═══════
+// → future module: src/bridge.js
+// HAP adaptation: replace this section's internals to call native APIs
+const Bridge={
+  _isHAP:typeof window.ohosWebView!=='undefined',
+
+  // Read a file from user selection. Returns {name, doc} or null.
+  async openFile(){
+    if(this._isHAP){
+      // HAP: call native file picker via bridge
+      const result=await window.ohosWebView.callNative('openFile');
+      if(!result)return null;
+      const p=result.isBinary
+        ?detectAndParse(result.data,true)
+        :detectAndParse(result.data,false);
+      return p&&p.sequence&&p.sequence.length>=5?{name:result.name,doc:p}:null;
+    }
+    // Browser: use hidden <input type="file">
+    return new Promise(resolve=>{
+      const fi=document.getElementById('fileInput');
+      const handler=async e=>{
+        fi.removeEventListener('change',handler);
+        const file=e.target.files[0];if(!file){resolve(null);return}
+        try{
+          const isBin=/\.dna$/i.test(file.name);
+          const data=isBin?await file.arrayBuffer():await file.text();
+          const p=detectAndParse(data,isBin);
+          resolve(p&&p.sequence&&p.sequence.length>=5?{name:file.name,doc:p}:null);
+        }catch(err){console.error(err);resolve(null)}
+      };
+      fi.addEventListener('change',handler);
+      fi.value='';fi.click();
+    });
+  },
+
+  // Export file to user. content=string, mime=MIME type.
+  exportFile(name,content,mime){
+    if(this._isHAP){
+      window.ohosWebView.callNative('saveFile',{name,content,mime});
+      return;
+    }
+    const b=new Blob([content],{type:mime||'text/plain'});
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(b);a.download=name;a.click();
+    URL.revokeObjectURL(a.href);
+  }
+};
+
+// ═══════ Init ═══════
+(function(){
+  let doc=null,enz=[],renderer,seqView;
+  let isDirty=false;
+  function markDirty(){isDirty=true;window.isDirty=true;document.title='● GenePen — '+(doc?doc.locus||'untitled':'untitled')}
+  function markClean(){isDirty=false;window.isDirty=false;document.title='🧬 GenePen'}
+  window._markDirty=markDirty;window.isDirty=false;
+  window.onbeforeunload=function(e){if(isDirty){e.preventDefault();e.returnValue='文件已修改但未保存';return e.returnValue}};
+  // Auto-recovery: save draft on every edit, recover on next launch
+  function saveDraft(){
+    if(!doc||!isDirty)return;
+    try{localStorage.setItem('genepen_draft',JSON.stringify({locus:doc.locus,sequence:doc.sequence,features:doc.features,circular:doc.circular,ts:Date.now()}))}catch(e){}
+  }
+  function clearDraft(){try{localStorage.removeItem('genepen_draft')}catch(e){}}
+  function checkRecovery(){
+    try{
+      const raw=localStorage.getItem('genepen_draft');
+      if(!raw)return;
+      const draft=JSON.parse(raw);
+      if(!draft||!draft.sequence)return;
+      const ago=Math.round((Date.now()-draft.ts)/60000);
+      seqView._showModal('恢复未保存的编辑','<div>发现 '+(ago<1?'刚才':ago+' 分钟前')+' 的未保存草稿</div><div style="margin-top:6px;color:#8b8fa8">序列: '+(draft.locus||'unnamed')+' ('+draft.sequence.length+' bp)</div>',{okText:'恢复'}).then(ok=>{
+        if(ok){loadDocument(draft.locus||'recovered',draft);markDirty()}
+        clearDraft();
+      });
+    }catch(e){}
+  }
+  // Auto-save draft every 5 seconds when dirty
+  setInterval(saveDraft,5000);
+  // On page hide (works in some WebViews where beforeunload doesn't)
+  document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')saveDraft()});
+  // Clear draft on successful save
+  const origMarkClean=markClean;
+  markClean=function(){origMarkClean();clearDraft()};
+  // Check for recovery after a short delay (let page fully init)
+  setTimeout(checkRecovery,500);
+
+  function refreshSeq(){if(doc&&seqView)seqView.render()}
+  function redraw(){if(doc&&renderer){renderer.enz=enz;renderer.draw()}}
+  function rebuildEnz(){if(!doc){enz=[];renderTable();return}enz=findCutSites(doc.sequence);redraw();renderTable();if(seqView)seqView.enz=enz}
+  function filterEnzymes(){if(!doc){renderTable();return}
+    const tb=document.getElementById('enzBody');tb.innerHTML='';
+    const _sU=document.querySelector('[data-enzf="unique"]').classList.contains('checked');
+    const _sD=document.querySelector('[data-enzf="dual"]').classList.contains('checked');
+    const _sA=document.querySelector('[data-enzf="all"]').classList.contains('checked');
+    let count=0;
+    for(const e of enz){
+      let show=!1;
+      if(e.count===1&&_sU)show=!0;
+      else if(e.count===2&&_sD)show=!0;
+      else if(e.count>=3&&_sA)show=!0;
+      if(!show)continue;count++;
+      const tr=document.createElement('tr');
+      tr.innerHTML='<td style="color:#4f8cff;font-weight:bold">'+e.name+'</td><td style="color:#8b8fa8">'+e.seq+'</td><td>'+e.sites.map(s=>s.pos).join(', ')+'</td><td>'+e.count+'</td>';
+      tb.appendChild(tr);
+    }
+    document.getElementById('enzEmpty').style.display=count?'none':'';
+    document.getElementById('enzCnt').textContent=count+' 种';
+  }
+
+  function renderTable(){filterEnzymes()}
+
+  // ── Menu dropdown toggle ──
+  document.querySelectorAll('.menu-item').forEach(mi=>{
+    mi.addEventListener('click',e=>{
+      if(e.target.closest('.dropdown'))return;
+      document.querySelectorAll('.menu-item.open').forEach(m=>{if(m!==mi)m.classList.remove('open')});
+      mi.classList.toggle('open');
+    });
+  });
+  document.addEventListener('click',e=>{
+    if(!e.target.closest('.menu-item'))document.querySelectorAll('.menu-item.open').forEach(m=>m.classList.remove('open'));
+  });
+  // Close dropdown after file selected or export clicked
+  document.getElementById('fileInput').addEventListener('change',()=>{document.querySelectorAll('.menu-item.open').forEach(m=>m.classList.remove('open'))});
+  document.getElementById('btnGb').addEventListener('click',()=>{document.querySelectorAll('.menu-item.open').forEach(m=>m.classList.remove('open'))});
+
+  // ── View menu: global display toggles ──
+  const viewToggles={
+    togEnz:['showEnzOnMap','showEnzInSeq'],
+    togPrimers:['showPrimers'],
+    togORF:['showORF'],
+    togFeat:['showFeatInSeq']
+  };
+  for(const[togId,cbIds] of Object.entries(viewToggles)){
+    document.getElementById(togId).addEventListener('click',function(){
+      this.classList.toggle('checked');
+      const on=this.classList.contains('checked');
+      cbIds.forEach(id=>{const cb=document.getElementById(id);if(cb)cb.checked=on});
+      redraw();refreshSeq();
+    });
+  }
+
+  // Tab switching
+  document.querySelectorAll('.tabbar button').forEach(btn=>{btn.addEventListener('click',function(){document.querySelectorAll('.tabbar button,.tabc').forEach(e=>e.classList.remove('active'));this.classList.add('active');document.getElementById('tab'+this.getAttribute('data-tab')[0].toUpperCase()+this.getAttribute('data-tab').slice(1)).classList.add('active')})});
+
+  // Map controls
+  document.getElementById('mapMode').addEventListener('change',()=>{renderer._autoLinear=false;renderer._panY=0;redraw()});
+  document.getElementById('showEnzOnMap').addEventListener('change',redraw);
+  document.getElementById('showPrimers').addEventListener('change',redraw);
+  document.getElementById('mapZoom').addEventListener('input',function(){renderer.setZoom(parseInt(this.value))});
+  document.getElementById('mapZoomReset').addEventListener('click',()=>renderer.resetZoom());
+
+  // Seq controls
+  document.getElementById('frameS').addEventListener('change',refreshSeq);
+  document.getElementById('showORF').addEventListener('change',refreshSeq);
+  document.getElementById('aaMode').addEventListener('change',refreshSeq);
+  document.getElementById('minORF').addEventListener('input',refreshSeq);
+  document.getElementById('showFeatInSeq').addEventListener('change',refreshSeq);
+  document.getElementById('showEnzInSeq').addEventListener('change',refreshSeq);
+
+
+  // Enzyme controls
+
+  // Submenu filter buttons
+  document.querySelectorAll('[data-enzf]').forEach(btn=>{
+    btn.addEventListener('click',function(){
+      this.classList.toggle('checked');
+      redraw();refreshSeq();filterEnzymes();
+    });
+  });
+  // ORF submenu buttons
+  document.querySelectorAll('[data-frame]').forEach(btn=>{
+    btn.addEventListener('click',function(){
+      document.querySelectorAll('[data-frame]').forEach(b=>b.classList.remove('checked'));
+      this.classList.add('checked');
+      document.getElementById('frameS').value=this.dataset.frame;
+      refreshSeq();
+    });
+  });
+  document.querySelectorAll('[data-aamode]').forEach(btn=>{
+    btn.addEventListener('click',function(){
+      document.querySelectorAll('[data-aamode]').forEach(b=>b.classList.remove('checked'));
+      this.classList.add('checked');
+      document.getElementById('aaMode').value=this.dataset.aamode;
+      refreshSeq();
+    });
+  });
+  document.querySelectorAll('[data-minorf]').forEach(btn=>{
+    btn.addEventListener('click',function(){
+      document.querySelectorAll('[data-minorf]').forEach(b=>b.classList.remove('checked'));
+      this.classList.add('checked');
+      document.getElementById('minORF').value=this.dataset.minorf;
+      refreshSeq();
+    });
+  });
+
+  renderer=new Renderer(document.getElementById('c'));
+  seqView=new SeqViewer(document.getElementById('seqView'));
+
+  // ── Properties panel hover sync ──
+  let lastPropObj=null;
+  function syncPropPanel(){
+    let obj=null;
+    // Check map renderer
+    if(renderer.hoverEnz){const e=renderer.hoverEnz;obj={_type:'enzyme',name:e.name,seq:e.seq,cutPos:e.cutPos,pos:e.pos}}
+    else if(renderer.hovered){const f=renderer.hovered;obj={_type:f.type==='primer_bind'||f.type==='primer'?'primer':'feature',...f}}
+    // Check seq viewer
+    else if(seqView._hoveredFeat){const f=seqView._hoveredFeat;obj={_type:f.type==='primer_bind'||f.type==='primer'?'primer':'feature',...f}}
+    else if(seqView._hoveredEnz){const e=seqView._hoveredEnz;obj={_type:'enzyme',name:e.name,seq:e.seq,cutPos:e.cutPos,pos:e.pos}}
+    const key=obj?JSON.stringify(obj):null;
+    if(key!==lastPropObj){lastPropObj=key;showPropDetail(obj)}
+  }
+  document.getElementById('c').addEventListener('mousemove',syncPropPanel);
+  document.getElementById('seqView').addEventListener('mousemove',syncPropPanel);
+
+  // ── Load document into UI (shared entry point for browser & HAP) ──
+  function loadDocument(name,parsed){
+    doc=parsed;
+    document.getElementById('status').textContent='✅ '+name+' ('+doc.sequence.length+' bp, '+doc.features.length+' 个特征)';
+    rebuildEnz();renderer.load(doc,enz);seqView.load(doc,enz);
+    const gc=(doc.sequence.match(/[GC]/gi)||[]).length/doc.sequence.length*100;
+    document.getElementById('bpInfo').textContent='长度：'+doc.sequence.length.toLocaleString()+' bp';
+    document.getElementById('gcInfo').textContent='GC%：'+gc.toFixed(1)+'%';
+    document.getElementById('featCnt').textContent='特征：'+doc.features.length;
+    // Update properties panel
+    document.getElementById('ppName').textContent=doc.locus||doc.definition||name;
+    document.getElementById('ppLen').textContent=doc.sequence.length.toLocaleString()+' bp';
+    document.getElementById('ppTopo').textContent=doc.circular?'环形 (circular)':'线性 (linear)';
+    document.getElementById('ppGC').textContent=gc.toFixed(1)+'%';
+    document.getElementById('ppFeat').textContent=doc.features.filter(f=>f.type!=='source').length;
+    renderFeatureTable();
+  }
+  function renderFeatureTable(){
+    if(!doc)return;
+    const tb=document.getElementById('featBody');tb.innerHTML='';
+    const feats=doc.features.filter(f=>f.type!=='source'&&f.start!=null);
+    document.getElementById('featEmpty').style.display=feats.length?'none':'';
+    for(const f of feats){
+      const tr=document.createElement('tr');
+      tr.style.cssText='cursor:pointer';
+      tr.innerHTML='<td style="padding:4px 8px;border-bottom:1px solid rgba(46,51,68,.4);color:#4f8cff">'+f.type+'</td>'
+        +'<td style="padding:4px 8px;border-bottom:1px solid rgba(46,51,68,.4);font-weight:bold">'+(f.label||f.gene||'—')+'</td>'
+        +'<td style="padding:4px 8px;border-bottom:1px solid rgba(46,51,68,.4);font-family:monospace;font-size:13px">'+(f.start+1)+'..'+f.end+'</td>'
+        +'<td style="padding:4px 8px;border-bottom:1px solid rgba(46,51,68,.4)">'+(f.end-f.start)+' bp</td>'
+        +'<td style="padding:4px 8px;border-bottom:1px solid rgba(46,51,68,.4)">'+(f.strand===-1?'← 反向':'→ 正向')+'</td>';
+      tr.addEventListener('mouseover',()=>{tr.style.background='rgba(79,140,255,.08)'});
+      tr.addEventListener('mouseout',()=>{tr.style.background=''});
+      tb.appendChild(tr);
+    }
+  }
+  function showPropDetail(obj){
+    const el=document.getElementById('propSelContent');
+    const empty=document.getElementById('propSelEmpty');
+    if(!obj){el.style.display='none';empty.style.display='';return}
+    empty.style.display='none';el.style.display='';
+    let html='';
+    if(obj._type==='feature'){
+      html+='<div class="prop-row"><span class="pk">类型</span><span class="pv">'+obj.type+'</span></div>';
+      html+='<div class="prop-row"><span class="pk">名称</span><span class="pv">'+(obj.label||obj.gene||'—')+'</span></div>';
+      html+='<div class="prop-row"><span class="pk">范围</span><span class="pv">'+(obj.start+1)+'..'+obj.end+'</span></div>';
+      html+='<div class="prop-row"><span class="pk">长度</span><span class="pv">'+(obj.end-obj.start)+' bp</span></div>';
+      html+='<div class="prop-row"><span class="pk">方向</span><span class="pv">'+(obj.strand===-1?'反义 (−)':'正义 (+)')+'</span></div>';
+      if(obj.product)html+='<div class="prop-row"><span class="pk">产物</span><span class="pv">'+obj.product+'</span></div>';
+    }else if(obj._type==='enzyme'){
+      html+='<div class="prop-row"><span class="pk">酶</span><span class="pv">'+obj.name+'</span></div>';
+      html+='<div class="prop-row"><span class="pk">识别</span><span class="pv" style="font-family:monospace">'+obj.seq+'</span></div>';
+      html+='<div class="prop-row"><span class="pk">切点</span><span class="pv">'+(obj.pos+1)+'</span></div>';
+      html+='<div class="prop-row"><span class="pk">切割</span><span class="pv">'+obj.seq.slice(0,obj.cutPos)+'↓'+obj.seq.slice(obj.cutPos)+'</span></div>';
+    }else if(obj._type==='primer'){
+      html+='<div class="prop-row"><span class="pk">引物</span><span class="pv">'+(obj.label||obj.gene||'—')+'</span></div>';
+      html+='<div class="prop-row"><span class="pk">范围</span><span class="pv">'+(obj.start+1)+'..'+obj.end+'</span></div>';
+      html+='<div class="prop-row"><span class="pk">长度</span><span class="pv">'+(obj.end-obj.start)+' bp</span></div>';
+      html+='<div class="prop-row"><span class="pk">方向</span><span class="pv">'+(obj.strand===-1?'反向 ←':'正向 →')+'</span></div>';
+    }
+    el.innerHTML=html;
+  }
+
+  // ── File open (browser mode: <input>, HAP mode: Bridge.openFile()) ──
+  const fi=document.getElementById('fileInput');
+  fi.addEventListener('change',async e=>{
+    const file=e.target.files[0];if(!file)return;
+    document.getElementById('status').textContent='读取 '+file.name+'...';
+    try{
+      const isBin=/\.dna$/i.test(file.name);
+      const data=isBin?await file.arrayBuffer():await file.text();
+      const p=detectAndParse(data,isBin);
+      if(!p||!p.sequence||p.sequence.length<5){document.getElementById('status').textContent='❌ 解析失败';return}
+      loadDocument(file.name,p);
+    }catch(err){document.getElementById('status').textContent='❌ 失败: '+err.message;console.error(err)}
+  });
+  fi.addEventListener('click',function(){this.value=''});
+
+  // ── Feature operations undo/redo ──
+  const featUndo=[],featRedo=[];
+  function saveFeatState(){
+    featUndo.push(JSON.parse(JSON.stringify(doc.features)));
+    featRedo.length=0;
+    markDirty();
+  }
+  function undoFeat(){
+    if(!featUndo.length||!doc)return false;
+    featRedo.push(JSON.parse(JSON.stringify(doc.features)));
+    doc.features=featUndo.pop();
+    rebuildEnz();renderer.load(doc,enz);seqView.load(doc,enz);
+    document.getElementById('status').textContent='↩ 已撤销';
+    return true;
+  }
+  function redoFeat(){
+    if(!featRedo.length||!doc)return false;
+    featUndo.push(JSON.parse(JSON.stringify(doc.features)));
+    doc.features=featRedo.pop();
+    rebuildEnz();renderer.load(doc,enz);seqView.load(doc,enz);
+    document.getElementById('status').textContent='↪ 已重做';
+    return true;
+  }
+
+  // ── Primer editor ──
+  async function showPrimerEditor(prefillSeq,prefillPos,prefillStrand,prefillName){
+    if(!doc)return;
+    const pos=prefillPos>=0?prefillPos:(seqView._cursor>=0?seqView._cursor:0);
+    const strand=prefillStrand||1;
+    const seq=prefillSeq||'';
+    const initName=prefillName||'';
+    const bodyHTML=`
+      <div style="display:grid;grid-template-columns:60px 1fr;gap:6px 8px;align-items:center">
+        <span class="pk">名称</span><input id="peditName" style="background:#0f1117;color:#e0e2ed;border:1px solid #2e3344;border-radius:4px;padding:4px 8px;font-size:12px" placeholder="Primer name" value="${initName.replace(/"/g,'&quot;')}">
+        <span class="pk">序列</span><textarea id="peditSeq" rows="2" style="background:#0f1117;color:#e0e2ed;border:1px solid #2e3344;border-radius:4px;padding:4px 8px;font-family:Consolas,monospace;font-size:12px;resize:vertical" placeholder="ATCGATCG...">${seq}</textarea>
+        <span class="pk">方向</span><select id="peditDir" style="background:#0f1117;color:#e0e2ed;border:1px solid #2e3344;border-radius:4px;padding:4px 8px;font-size:12px"><option value="1"${strand===1?' selected':''}>正向 →</option><option value="-1"${strand===-1?' selected':''}>反向 ←</option></select>
+        <span class="pk">位置</span><input id="peditPos" type="number" min="1" style="background:#0f1117;color:#e0e2ed;border:1px solid #2e3344;border-radius:4px;padding:4px 8px;font-size:12px;width:80px" value="${pos+1}">
+      </div>
+      <div id="peditInfo" style="margin-top:10px;padding:8px;background:#0f1117;border-radius:4px;font-size:11px;color:#8b8fa8">长度: — | Tm: — | GC%: —</div>
+    `;
+    const prom=seqView._showModal('添加/编辑引物',bodyHTML,{okText:'保存'});
+    // Setup real-time calculation
+    const seqEl=document.getElementById('peditSeq');
+    const infoEl=document.getElementById('peditInfo');
+    function updateInfo(){
+      const s=seqEl.value.toUpperCase().replace(/[^ATCGN]/g,'');
+      if(!s){infoEl.textContent='长度: — | Tm: — | GC%: —';return}
+      infoEl.textContent='长度: '+s.length+' bp | Tm: '+calcTm(s)+' °C | GC%: '+calcGC(s)+'%';
+    }
+    seqEl.addEventListener('input',updateInfo);
+    updateInfo();
+    seqEl.focus();
+    const ok=await prom;
+    if(!ok)return;
+    // Save primer
+    const name=document.getElementById('peditName').value.trim()||'Primer';
+    const finalSeq=seqEl.value.toUpperCase().replace(/[^ATCGN]/g,'');
+    const dir=parseInt(document.getElementById('peditDir').value);
+    const startPos=Math.max(0,parseInt(document.getElementById('peditPos').value)-1)||0;
+    if(!finalSeq){return}
+    const primer={type:'primer_bind',start:startPos,end:startPos+finalSeq.length,strand:dir,label:name,gene:'',product:'',notes:[]};
+    saveFeatState();doc.features.push(primer);
+    rebuildEnz();renderer.load(doc,enz);seqView.load(doc,enz);
+    document.getElementById('featCnt').textContent='特征：'+doc.features.filter(f=>f.type!=='source').length;
+    document.getElementById('ppFeat').textContent=doc.features.filter(f=>f.type!=='source').length;
+  }
+  document.getElementById('btnAddPrimer').addEventListener('click',()=>showPrimerEditor('',- 1,1));
+  document.getElementById('ctxAddPrimer').addEventListener('click',()=>{
+    const sel=(seqView._selStart>=0&&seqView._selEnd>seqView._selStart)?doc.sequence.slice(seqView._selStart,seqView._selEnd):'';
+    const pos=seqView._selStart>=0?seqView._selStart:(seqView._cursor>=0?seqView._cursor:0);
+    showPrimerEditor(sel,pos,1);
+  });
+  document.getElementById('ctxEditPrimer').addEventListener('click',()=>{
+    const p=seqView._ctxPrimer;if(!p||!doc)return;
+    const seq=p.strand===-1?revComp(doc.sequence.slice(p.start,p.end)):doc.sequence.slice(p.start,p.end);
+    const pName=p.label||p.gene||'';
+    // Remove old primer, then open editor pre-filled
+    saveFeatState();doc.features=doc.features.filter(f=>f!==p);
+    showPrimerEditor(seq,p.start,p.strand,pName);
+  });
+  document.getElementById('ctxCopyPrimer').addEventListener('click',()=>{
+    const p=seqView._ctxPrimer;if(!p||!doc)return;
+    const seq=p.strand===-1?revComp(doc.sequence.slice(p.start,p.end)):doc.sequence.slice(p.start,p.end);
+    navigator.clipboard.writeText(seq).catch(()=>{});
+  });
+  document.getElementById('ctxDelPrimer').addEventListener('click',async()=>{
+    const p=seqView._ctxPrimer;if(!p||!doc)return;
+    const ok=await seqView._showModal('删除引物','<div class="warn">确认删除引物 "'+(p.label||'unnamed')+'" ?</div>',{okClass:'btn-danger',okText:'删除'});
+    if(!ok)return;
+    saveFeatState();doc.features=doc.features.filter(f=>f!==p);
+    rebuildEnz();renderer.load(doc,enz);seqView.load(doc,enz);
+    document.getElementById('featCnt').textContent='特征：'+doc.features.filter(f=>f.type!=='source').length;
+  });
+
+  // ── File operations ──
+  let lastSaveFormat='gb';
+  function saveAs(fmt){
+    if(!doc)return;
+    const name=doc.locus||'export';
+    switch(fmt){
+      case 'gb':Bridge.exportFile(name+'.gb',serializeGB(doc),'text/plain');break;
+      case 'fa':Bridge.exportFile(name+'.fa',serializeFASTA(doc),'text/plain');break;
+      case 'txt':Bridge.exportFile(name+'.txt',serializeTxt(doc),'text/plain');break;
+      case 'dna':Bridge.exportFile(name+'.dna',serializeDNA(doc),'application/octet-stream');break;
+    }
+    lastSaveFormat=fmt;markClean();
+  }
+  document.getElementById('btnGb').addEventListener('click',()=>saveAs('gb'));
+  document.getElementById('btnExFa').addEventListener('click',()=>saveAs('fa'));
+  document.getElementById('btnExTxt').addEventListener('click',()=>saveAs('txt'));
+  document.getElementById('btnExDna').addEventListener('click',()=>saveAs('dna'));
+  document.getElementById('btnSave').addEventListener('click',()=>saveAs(lastSaveFormat));
+  document.getElementById('btnSaveAs').addEventListener('click',async()=>{
+    if(!doc)return;
+    const ok=await seqView._showModal('另存为','<label style="display:flex;align-items:center;gap:8px;color:#b0b4c8">格式 <select id="saveFormatSel" style="background:#1a1d28;color:#e0e2ed;border:1px solid #2e3344;border-radius:4px;padding:4px 8px;font-size:12px"><option value="gb">GenBank (.gb)</option><option value="fa">FASTA (.fa)</option><option value="dna">SnapGene (.dna)</option><option value="txt">纯序列 (.txt)</option></select></label>',{okText:'保存'});
+    if(!ok)return;
+    const fmt=document.getElementById('saveFormatSel').value;
+    saveAs(fmt);
+  });
+  // Global keyboard shortcuts
+  document.addEventListener('keydown',e=>{
+    if((e.ctrlKey||e.metaKey)&&e.key==='s'){e.preventDefault();saveAs(lastSaveFormat)}
+    // Feature-level undo/redo (primers, annotations) — only if SeqViewer didn't handle it
+    if(!e.defaultPrevented&&(e.ctrlKey||e.metaKey)&&e.key==='z'&&!e.shiftKey&&featUndo.length){e.preventDefault();undoFeat()}
+    if(!e.defaultPrevented&&(e.ctrlKey||e.metaKey)&&(e.key==='y'||(e.key==='z'&&e.shiftKey))&&featRedo.length){e.preventDefault();redoFeat()}
+  });
+})();
+</script>
+</body>
+</html>
